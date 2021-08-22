@@ -22,43 +22,6 @@ class MainActivity : AppCompatActivity() {
 
         SimpleImageLoader.init(cacheDir, resources.displayMetrics)
 
-        val fitCenter: (ImageView, Bitmap) -> Unit = { imageView, bitmap ->
-            with(imageView) {
-                scaleType = ImageView.ScaleType.FIT_CENTER
-                colorFilter = null
-                setImageBitmap(bitmap)
-            }
-        }
-
-        val centerCrop: (ImageView, Bitmap) -> Unit = { imageView, bitmap ->
-            with(imageView) {
-                scaleType = ImageView.ScaleType.CENTER_CROP
-                colorFilter = null
-                setImageBitmap(bitmap)
-            }
-        }
-
-        val centerInside: (ImageView, Bitmap) -> Unit = { imageView, bitmap ->
-            with(imageView) {
-                scaleType = ImageView.ScaleType.CENTER_INSIDE
-                colorFilter = null
-                setImageBitmap(bitmap)
-            }
-        }
-
-        val centerResWithTint = fun(drawableRes: Int, tintColor: Int): (ImageView) -> Unit {
-            return {
-                with(it) {
-                    scaleType = ImageView.ScaleType.CENTER
-                    setImageResource(drawableRes)
-                    setColorFilter(
-                        ContextCompat.getColor(context, tintColor),
-                        PorterDuff.Mode.MULTIPLY
-                    )
-                }
-            }
-        }
-
         SimpleImageLoader.load()
             .from(url1)
             .placeholderHandler(centerResWithTint(R.drawable.ic_image, R.color.teal_700))
@@ -77,5 +40,42 @@ class MainActivity : AppCompatActivity() {
             .errorHandler(centerResWithTint(R.drawable.ic_image_remove, R.color.purple_500))
             .successHandler(centerInside)
             .into(image3)
+    }
+
+    private val fitCenter: (ImageView, Bitmap) -> Unit = { imageView, bitmap ->
+        with(imageView) {
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            colorFilter = null
+            setImageBitmap(bitmap)
+        }
+    }
+
+    private val centerCrop: (ImageView, Bitmap) -> Unit = { imageView, bitmap ->
+        with(imageView) {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            colorFilter = null
+            setImageBitmap(bitmap)
+        }
+    }
+
+    private val centerInside: (ImageView, Bitmap) -> Unit = { imageView, bitmap ->
+        with(imageView) {
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            colorFilter = null
+            setImageBitmap(bitmap)
+        }
+    }
+
+    private val centerResWithTint = fun(drawableRes: Int, tintColor: Int): (ImageView) -> Unit {
+        return {
+            with(it) {
+                scaleType = ImageView.ScaleType.CENTER
+                setImageResource(drawableRes)
+                setColorFilter(
+                    ContextCompat.getColor(context, tintColor),
+                    PorterDuff.Mode.MULTIPLY
+                )
+            }
+        }
     }
 }
