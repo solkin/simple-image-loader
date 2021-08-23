@@ -1,4 +1,4 @@
-package com.tomclaw.imageloader
+package com.tomclaw.imageloader.demo
 
 import android.graphics.Bitmap
 import android.graphics.PorterDuff
@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.tomclaw.imageloader.SimpleImageLoader
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -16,26 +17,22 @@ class MainActivity : AppCompatActivity() {
         val image2 = findViewById<ImageView>(R.id.image2)
         val image3 = findViewById<ImageView>(R.id.image3)
 
-        val url1 = "https://zibuhoker.ru/ifm/images/image1.jpg"
-        val url2 = "https://zibuhoker.ru/ifm/images/image2.jpg"
-        val url3 = "https://zibuhoker.ru/ifm/images/image3.jpg"
-
         SimpleImageLoader.init(cacheDir, resources.displayMetrics)
 
         SimpleImageLoader.load()
-            .from(url1)
+            .from("https://zibuhoker.ru/ifm/images/image1.jpg")
             .placeholderHandler(centerResWithTint(R.drawable.ic_image, R.color.teal_700))
             .errorHandler(centerResWithTint(R.drawable.ic_image_remove, R.color.purple_500))
             .successHandler(centerCrop)
             .into(image1)
         SimpleImageLoader.load()
-            .from(url2)
+            .from("https://zibuhoker.ru/ifm/images/image2.jpg")
             .placeholderHandler(centerResWithTint(R.drawable.ic_image, R.color.teal_700))
             .errorHandler(centerResWithTint(R.drawable.ic_image_remove, R.color.purple_500))
             .successHandler(fitCenter)
             .into(image2)
         SimpleImageLoader.load()
-            .from(url3)
+            .from("https://zibuhoker.ru/ifm/images/image3.jpg")
             .placeholderHandler(centerResWithTint(R.drawable.ic_image, R.color.teal_700))
             .errorHandler(centerResWithTint(R.drawable.ic_image_remove, R.color.purple_500))
             .successHandler(centerInside)

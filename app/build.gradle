@@ -7,7 +7,7 @@ android {
     compileSdk 30
 
     defaultConfig {
-        applicationId "com.tomclaw.imageloader"
+        applicationId "com.tomclaw.imageloader.demo"
         minSdk 21
         targetSdk 30
         versionCode 1
