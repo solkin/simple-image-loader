@@ -17,7 +17,7 @@
         android:id="@+id/image2"
         android:layout_width="match_parent"
         android:layout_height="256dp"
-        android:background="@color/black"
+        android:background="@color/purple_200"
         tools:ignore="ContentDescription" />
 
     <ImageView
