@@ -18,7 +18,7 @@ class MainActivity : AppCompatActivity() {
         recyclerview.layoutManager = LinearLayoutManager(this)
         val data = ArrayList<ItemsViewModel>()
         for (i in 1..30) {
-            val imageIndex = i % 3 + 1
+            val imageIndex = i % 5 + 1
             val url = "https://zibuhoker.ru/ifm/images/image$imageIndex.jpg"
             data.add(ItemsViewModel(url, "Image $i", url))
         }
