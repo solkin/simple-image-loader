@@ -7,10 +7,10 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.tomclaw.imageloader.SimpleImageLoader
 import com.tomclaw.imageloader.centerCrop
-import com.tomclaw.imageloader.errorResWithTint
-import com.tomclaw.imageloader.placeholderResWithTint
+import com.tomclaw.imageloader.fetch
+import com.tomclaw.imageloader.whenError
+import com.tomclaw.imageloader.withPlaceholder
 
 class CustomAdapter(private val list: List<ItemsViewModel>) :
     RecyclerView.Adapter<CustomAdapter.ViewHolder>() {
@@ -22,19 +22,14 @@ class CustomAdapter(private val list: List<ItemsViewModel>) :
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val purple = ContextCompat.getColor(holder.imageView.context, R.color.purple_500)
         val itemViewModel = list[position]
-        SimpleImageLoader.load()
-            .from(itemViewModel.imageUrl)
-            .placeholderResWithTint(
-                R.drawable.ic_image,
-                ContextCompat.getColor(holder.imageView.context, R.color.teal_700)
-            )
-            .errorResWithTint(
-                R.drawable.ic_image_remove,
-                ContextCompat.getColor(holder.imageView.context, R.color.purple_500)
-            )
-            .centerCrop()
-            .into(holder.imageView)
+        holder.imageView.fetch(itemViewModel.imageUrl) {
+            centerCrop()
+            withPlaceholder(R.drawable.ic_image)
+            whenError(R.drawable.ic_image_remove, purple)
+        }
+
         holder.titleView.text = itemViewModel.title
         holder.subtitleView.text = itemViewModel.subtitle
     }

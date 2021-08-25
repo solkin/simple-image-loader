@@ -1,50 +1,40 @@
-package com.tomclaw.imageloader
+package com.tomclaw.imageloader.core
 
-import android.graphics.Bitmap
-import android.util.DisplayMetrics
-import android.util.Size
-import android.widget.ImageView
 import java.lang.ref.WeakReference
 import java.security.MessageDigest
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
 
-
 interface ImageLoader {
 
-    fun load(
-        imageView: ImageView,
+    fun <T> load(
+        view: ViewHolder<T>,
         url: String,
-        success: (ImageView, Bitmap) -> Unit,
-        placeholder: (ImageView) -> Unit,
-        error: (ImageView) -> Unit
+        handlers: Handlers<T>
     )
 
 }
 
 class ImageLoaderImpl(
     private val fileProvider: FileProvider,
-    private val bitmapDecoder: BitmapDecoder,
+    private val decoder: Decoder,
     private val memoryCache: MemoryCache,
     private val mainExecutor: Executor,
-    private val backgroundExecutor: ExecutorService,
-    private val displayMetrics: DisplayMetrics
+    private val backgroundExecutor: ExecutorService
 ) : ImageLoader {
 
     private val futures: MutableMap<String, Future<*>> = HashMap()
 
-    override fun load(
-        imageView: ImageView,
+    override fun <T> load(
+        view: ViewHolder<T>,
         url: String,
-        success: (ImageView, Bitmap) -> Unit,
-        placeholder: (ImageView) -> Unit,
-        error: (ImageView) -> Unit
+        handlers: Handlers<T>
     ) {
-        val size = imageView.getSize()
+        val size = view.getSize()
         val key = generateKey(url, size.width, size.height)
-        val prevTag = imageView.tag
-        imageView.tag = key
+        val prevTag = view.tag
+        view.tag = key
         val isLoading = prevTag
             ?.takeIf { it is String }
             ?.let { prevKey ->
@@ -60,48 +50,40 @@ class ImageLoaderImpl(
         if (isLoading == true) return
 
         memoryCache.get(key)
-            ?.takeUnless { it.isRecycled }
-            ?.run { success.invoke(imageView, this) }
-            ?: loadAsync(imageView, size, url, key, success, placeholder, error)
+            ?.takeUnless { it.isRecycled() }
+            ?.run { handlers.success.invoke(view, this) }
+            ?: loadAsync(view, size, url, key, handlers)
     }
 
-    private fun loadAsync(
-        imageView: ImageView,
-        size: Size,
+    private fun <T> loadAsync(
+        view: ViewHolder<T>,
+        size: ViewSize,
         url: String,
         key: String,
-        success: (ImageView, Bitmap) -> Unit,
-        placeholder: (ImageView) -> Unit,
-        error: (ImageView) -> Unit
+        handlers: Handlers<T>
     ) {
-        val weakImageView = WeakReference(imageView)
-        placeholder.invoke(imageView)
+        val weakImageView = WeakReference(view)
+        handlers.placeholder.invoke(view)
         backgroundExecutor.submit {
             fileProvider.getFile(url)
                 .takeIf { it != null }
                 ?.let { file ->
-                    bitmapDecoder.getBitmap(file, size.width, size.height)
+                    decoder.decode(file, size.width, size.height)
                 }
-                ?.let { bitmap ->
-                    memoryCache.put(key, bitmap)
+                ?.let { result ->
+                    memoryCache.put(key, result)
                     mainExecutor.execute {
                         weakImageView.get()?.apply {
                             if (tag == key) {
-                                success.invoke(imageView, bitmap)
+                                handlers.success.invoke(view, result)
                             }
                         }
                         futures.remove(key)
                     }
-                } ?: error.invoke(imageView)
+                } ?: handlers.error.invoke(view)
         }.let { future ->
             futures[url] = future
         }
-    }
-
-    private fun ImageView.getSize(): Size {
-        val w = measuredWidth.takeIf { it > 0 } ?: displayMetrics.widthPixels
-        val h = measuredHeight.takeIf { it > 0 } ?: displayMetrics.heightPixels
-        return Size(w, h)
     }
 
     private fun generateKey(url: String, width: Int, height: Int): String {

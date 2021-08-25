@@ -10,6 +10,7 @@
         android:id="@+id/image_view"
         android:layout_width="52dp"
         android:layout_height="52dp"
+        android:background="@color/grey"
         tools:ignore="ContentDescription" />
 
     <LinearLayout

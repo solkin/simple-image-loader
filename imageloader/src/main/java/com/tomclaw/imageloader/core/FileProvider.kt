@@ -1,4 +1,4 @@
-package com.tomclaw.imageloader
+package com.tomclaw.imageloader.core
 
 import android.net.Uri
 import java.io.File

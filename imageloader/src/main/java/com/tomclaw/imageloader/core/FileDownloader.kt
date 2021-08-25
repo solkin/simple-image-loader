@@ -1,5 +1,6 @@
-package com.tomclaw.imageloader
+package com.tomclaw.imageloader.core
 
+import com.tomclaw.imageloader.safeCopyTo
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection

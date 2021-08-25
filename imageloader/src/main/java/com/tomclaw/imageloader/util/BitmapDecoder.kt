@@ -1,40 +1,40 @@
-package com.tomclaw.imageloader
+package com.tomclaw.imageloader.util
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.media.ExifInterface
+import com.tomclaw.imageloader.core.Decoder
+import com.tomclaw.imageloader.core.Result
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
 import java.io.InputStream
 
-interface BitmapDecoder {
+class BitmapDecoder : Decoder {
 
-    fun getBitmap(file: File, reqWidth: Int, reqHeight: Int): Bitmap?
-
-}
-
-class BitmapDecoderImpl() : BitmapDecoder {
-
-    override fun getBitmap(
+    override fun decode(
         file: File,
-        reqWidth: Int,
-        reqHeight: Int
-    ): Bitmap? {
+        width: Int,
+        height: Int
+    ): Result? {
         var bitmap: Bitmap?
         var inputStream: InputStream? = null
         try {
             inputStream = FileInputStream(file)
-            bitmap = decodeSampledBitmapFromStream(inputStream, reqWidth, reqHeight)
+            bitmap = decodeSampledBitmapFromStream(inputStream, width, height)
             val rotation = getRotation(file)
             if (bitmap != null && rotation != 0) {
-                val width = bitmap.width
-                val height = bitmap.height
                 val m = Matrix()
-                m.setRotate(rotation.toFloat(), (width / 2).toFloat(), (height / 2).toFloat())
-                bitmap = Bitmap.createBitmap(bitmap, 0, 0, width, height, m, false)
+                m.setRotate(
+                    rotation.toFloat(),
+                    (bitmap.width / 2).toFloat(),
+                    (bitmap.height / 2).toFloat()
+                )
+                bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, m, false)
             }
         } catch (ignored: Throwable) {
             ignored.printStackTrace()
@@ -47,7 +47,7 @@ class BitmapDecoderImpl() : BitmapDecoder {
                 }
             }
         }
-        return bitmap
+        return bitmap?.let { BitmapResult(it) }
     }
 
     private fun decodeSampledBitmapFromStream(
@@ -105,6 +105,18 @@ class BitmapDecoderImpl() : BitmapDecoder {
         } catch (ex: IOException) {
             ExifInterface.ORIENTATION_UNDEFINED
         }
+    }
+
+}
+
+class BitmapResult(private val bitmap: Bitmap) : Result {
+
+    override fun getByteCount() = bitmap.byteCount
+
+    override fun isRecycled() = bitmap.isRecycled
+
+    override fun getDrawable(): Drawable {
+        return BitmapDrawable(null, bitmap)
     }
 
 }

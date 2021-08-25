@@ -1,4 +1,4 @@
-package com.tomclaw.imageloader
+package com.tomclaw.imageloader.core
 
 import com.tomclaw.cache.DiskLruCache
 import java.io.File

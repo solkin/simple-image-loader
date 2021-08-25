@@ -1,4 +1,4 @@
-package com.tomclaw.imageloader
+package com.tomclaw.imageloader.core
 
 import android.os.Handler
 import android.os.Looper
