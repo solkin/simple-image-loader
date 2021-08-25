@@ -13,6 +13,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
 import java.io.InputStream
+import kotlin.math.max
 
 class BitmapDecoder : Decoder {
 
@@ -68,7 +69,7 @@ class BitmapDecoder : Decoder {
             // Calculate inSampleSize
             val widthSample = (options.outWidth / reqWidth).toFloat()
             val heightSample = (options.outHeight / reqHeight).toFloat()
-            var scaleFactor = Math.max(widthSample, heightSample)
+            var scaleFactor = max(widthSample, heightSample)
             if (scaleFactor < 1) {
                 scaleFactor = 1f
             }
