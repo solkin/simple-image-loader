@@ -1,4 +1,4 @@
-package com.tomclaw.imageloader
+package com.tomclaw.imageloader.util
 
 import java.io.Closeable
 import java.io.IOException
@@ -26,9 +26,3 @@ fun InputStream.copyTo(output: OutputStream) {
     }
 }
 
-fun Closeable?.safeClose() {
-    try {
-        this?.close()
-    } catch (ignored: IOException) {
-    }
-}

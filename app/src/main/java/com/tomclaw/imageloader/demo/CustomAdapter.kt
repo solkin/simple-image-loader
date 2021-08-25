@@ -7,10 +7,10 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.tomclaw.imageloader.centerCrop
-import com.tomclaw.imageloader.fetch
-import com.tomclaw.imageloader.whenError
-import com.tomclaw.imageloader.withPlaceholder
+import com.tomclaw.imageloader.util.centerCrop
+import com.tomclaw.imageloader.util.fetch
+import com.tomclaw.imageloader.util.whenError
+import com.tomclaw.imageloader.util.withPlaceholder
 
 class CustomAdapter(private val list: List<ItemsViewModel>) :
     RecyclerView.Adapter<CustomAdapter.ViewHolder>() {

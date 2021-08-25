@@ -1,6 +1,6 @@
 package com.tomclaw.imageloader.core
 
-import com.tomclaw.imageloader.safeCopyTo
+import com.tomclaw.imageloader.util.safeCopyTo
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
@@ -12,7 +12,7 @@ interface FileDownloader {
 
 }
 
-class FileDownloaderImpl() : FileDownloader {
+class FileDownloaderImpl : FileDownloader {
 
     override fun download(url: String, file: File): Boolean {
         val connection = openConnection(url)

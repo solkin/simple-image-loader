@@ -1,4 +1,4 @@
-package com.tomclaw.imageloader
+package com.tomclaw.imageloader.util
 
 import android.graphics.PorterDuff
 import android.widget.ImageView
