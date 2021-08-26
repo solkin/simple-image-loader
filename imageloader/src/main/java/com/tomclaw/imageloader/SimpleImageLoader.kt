@@ -4,8 +4,8 @@ import android.content.Context
 import com.tomclaw.cache.DiskLruCache
 import com.tomclaw.imageloader.core.DiskCache
 import com.tomclaw.imageloader.core.DiskCacheImpl
-import com.tomclaw.imageloader.core.FileDownloader
-import com.tomclaw.imageloader.core.FileDownloaderImpl
+import com.tomclaw.imageloader.core.FileLoader
+import com.tomclaw.imageloader.util.FileDownloader
 import com.tomclaw.imageloader.core.FileProvider
 import com.tomclaw.imageloader.core.FileProviderImpl
 import com.tomclaw.imageloader.core.Decoder
@@ -23,10 +23,10 @@ object SimpleImageLoader {
 
     fun Context.imageLoader(cacheSize: Long = 5242880L): ImageLoader {
         return imageLoader ?: run {
-            val fileDownloader: FileDownloader = FileDownloaderImpl()
+            val fileLoader: FileLoader = FileDownloader()
             val decoder: Decoder = BitmapDecoder()
             val diskCache: DiskCache = DiskCacheImpl(DiskLruCache.create(cacheDir, cacheSize))
-            val fileProvider: FileProvider = FileProviderImpl(cacheDir, diskCache, fileDownloader)
+            val fileProvider: FileProvider = FileProviderImpl(cacheDir, diskCache, fileLoader)
             val memoryCache: MemoryCache = MemoryCacheImpl()
             val mainExecutor = MainExecutorImpl()
             val backgroundExecutor = Executors.newFixedThreadPool(5)

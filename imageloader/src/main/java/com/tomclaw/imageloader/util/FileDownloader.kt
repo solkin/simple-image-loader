@@ -1,21 +1,18 @@
-package com.tomclaw.imageloader.core
+package com.tomclaw.imageloader.util
 
-import com.tomclaw.imageloader.util.safeCopyTo
+import com.tomclaw.imageloader.core.FileLoader
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
-interface FileDownloader {
+class FileDownloader : FileLoader {
 
-    fun download(url: String, file: File): Boolean
+    override val schemes: List<String>
+        get() = listOf("http", "https")
 
-}
-
-class FileDownloaderImpl : FileDownloader {
-
-    override fun download(url: String, file: File): Boolean {
-        val connection = openConnection(url)
+    override fun load(uri: String, file: File): Boolean {
+        val connection = openConnection(uri)
         val fileStream = FileOutputStream(file)
         return connection.inputStream
             ?.takeIf { connection.responseCode in 200..299 }
@@ -23,9 +20,9 @@ class FileDownloaderImpl : FileDownloader {
             ?.takeIf { true } ?: false
     }
 
-    private fun openConnection(url: String): HttpURLConnection {
-        val u = URL(url)
-        return (u.openConnection() as HttpURLConnection).apply {
+    private fun openConnection(uri: String): HttpURLConnection {
+        val url = URL(uri)
+        return (url.openConnection() as HttpURLConnection).apply {
             requestMethod = METHOD_GET
             doInput = true
             doOutput = false
