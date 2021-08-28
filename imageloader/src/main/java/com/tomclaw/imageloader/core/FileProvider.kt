@@ -42,7 +42,7 @@ class FileProviderImpl(
             return loader.load(uriString, tempFile)
                 .takeIf { true }
                 ?.let { diskCache.put(uriString, tempFile) }
-        } catch (ex: IOException) {
+        } catch (ex: Throwable) {
             ex.printStackTrace()
         } finally {
             tempFile?.delete()

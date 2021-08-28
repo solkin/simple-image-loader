@@ -17,10 +17,17 @@ class MainActivity : AppCompatActivity() {
         val recyclerview = findViewById<RecyclerView>(R.id.recycler)
         recyclerview.layoutManager = LinearLayoutManager(this)
         val data = ArrayList<ItemsViewModel>()
+        val uris = listOf(
+            "https://zibuhoker.ru/ifm/images/image1.jpg",
+            "https://zibuhoker.ru/ifm/images/image2.jpg",
+            "https://zibuhoker.ru/ifm/images/image3.jpg",
+            "https://zibuhoker.ru/ifm/images/image4.jpg",
+            "file:///android_asset/image1.jpg",
+        )
         for (i in 1..30) {
-            val imageIndex = i % 5 + 1
-            val url = "https://zibuhoker.ru/ifm/images/image$imageIndex.jpg"
-            data.add(ItemsViewModel(url, "Image $i", url))
+            val imageIndex = i % uris.size
+            val uri = uris[imageIndex]
+            data.add(ItemsViewModel(uri, "Image $i", uri))
         }
         val adapter = CustomAdapter(data)
         recyclerview.adapter = adapter
