@@ -10,7 +10,7 @@ interface ImageLoader {
 
     fun <T> load(
         view: ViewHolder<T>,
-        url: String,
+        uriString: String,
         handlers: Handlers<T>
     )
 
@@ -28,11 +28,11 @@ class ImageLoaderImpl(
 
     override fun <T> load(
         view: ViewHolder<T>,
-        url: String,
+        uriString: String,
         handlers: Handlers<T>
     ) {
         val size = view.getSize()
-        val key = generateKey(url, size.width, size.height)
+        val key = generateKey(uriString, size.width, size.height)
         val prevTag = view.tag
         view.tag = key
         val isLoading = prevTag
@@ -52,20 +52,20 @@ class ImageLoaderImpl(
         memoryCache.get(key)
             ?.takeUnless { it.isRecycled() }
             ?.run { handlers.success.invoke(view, this) }
-            ?: loadAsync(view, size, url, key, handlers)
+            ?: loadAsync(view, size, uriString, key, handlers)
     }
 
     private fun <T> loadAsync(
         view: ViewHolder<T>,
         size: ViewSize,
-        url: String,
+        uriString: String,
         key: String,
         handlers: Handlers<T>
     ) {
         val weakImageView = WeakReference(view)
         handlers.placeholder.invoke(view)
         backgroundExecutor.submit {
-            fileProvider.getFile(url)
+            fileProvider.getFile(uriString)
                 .takeIf { it != null }
                 ?.let { file ->
                     decoder.decode(file, size.width, size.height)
@@ -82,7 +82,7 @@ class ImageLoaderImpl(
                     }
                 } ?: handlers.error.invoke(view)
         }.let { future ->
-            futures[url] = future
+            futures[uriString] = future
         }
     }
 

@@ -26,3 +26,10 @@ fun InputStream.copyTo(output: OutputStream) {
     }
 }
 
+fun Closeable?.safeClose() {
+    try {
+        this?.close()
+    } catch (ignored: IOException) {
+    }
+}
+

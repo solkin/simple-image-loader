@@ -2,7 +2,6 @@ package com.tomclaw.imageloader.core
 
 import android.net.Uri
 import java.io.File
-import java.io.IOException
 
 interface FileProvider {
 
@@ -15,14 +14,14 @@ interface FileProvider {
 class FileProviderImpl(
     private val cacheDir: File,
     private val diskCache: DiskCache,
-    vararg fileLoaders: FileLoader
+    vararg loaders: Loader
 ) : FileProvider {
 
-    private val loaders = HashMap<String, FileLoader>()
+    private val loaders = HashMap<String, Loader>()
 
     init {
-        fileLoaders.forEach { loader ->
-            loader.schemes.forEach { loaders[it] = loader }
+        loaders.forEach { loader ->
+            loader.schemes.forEach { this.loaders[it] = loader }
         }
     }
 

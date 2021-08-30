@@ -2,10 +2,10 @@ package com.tomclaw.imageloader.core
 
 import java.io.File
 
-interface FileLoader {
+interface Loader {
 
     val schemes: List<String>
 
-    fun load(uri: String, file: File): Boolean
+    fun load(uriString: String, file: File): Boolean
 
 }
