@@ -12,7 +12,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        imageLoader(cacheSize = 5242880L)
+        imageLoader()
 
         val recyclerview = findViewById<RecyclerView>(R.id.recycler)
         recyclerview.layoutManager = LinearLayoutManager(this)

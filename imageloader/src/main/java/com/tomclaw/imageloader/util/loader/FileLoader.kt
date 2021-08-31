@@ -11,7 +11,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.URI
 
-class LocalFileLoader(private val assets: AssetManager?) : Loader {
+class FileLoader(private val assets: AssetManager?) : Loader {
 
     override val schemes: List<String>
         get() = listOf("file")

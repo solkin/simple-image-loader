@@ -10,7 +10,7 @@ import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
-class FileDownloader : Loader {
+class UrlLoader : Loader {
 
     override val schemes: List<String>
         get() = listOf("http", "https")

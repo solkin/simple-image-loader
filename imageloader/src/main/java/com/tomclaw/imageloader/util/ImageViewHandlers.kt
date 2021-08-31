@@ -41,7 +41,10 @@ fun Handlers<ImageView>.centerInside() = apply {
 }
 
 fun Handlers<ImageView>.withPlaceholder(drawableRes: Int) = apply {
-    placeholderHandler { it.centerRes(drawableRes) }
+    placeholderHandler {
+        it.centerRes(drawableRes)
+        it.get().colorFilter = null
+    }
 }
 
 fun Handlers<ImageView>.withPlaceholder(drawableRes: Int, tintColor: Int) = apply {

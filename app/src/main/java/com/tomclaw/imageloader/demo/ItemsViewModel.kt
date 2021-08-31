@@ -1,3 +1,5 @@
 package com.tomclaw.imageloader.demo
 
-data class ItemsViewModel(val imageUrl: String, val title: String, val subtitle: String)
+import android.net.Uri
+
+data class ItemsViewModel(val uriString: String, val title: String, val subtitle: String)

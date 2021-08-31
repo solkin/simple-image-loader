@@ -14,28 +14,30 @@ import com.tomclaw.imageloader.core.MemoryCache
 import com.tomclaw.imageloader.core.MemoryCacheImpl
 import com.tomclaw.imageloader.util.BitmapDecoder
 import com.tomclaw.imageloader.util.loader.ContentLoader
-import com.tomclaw.imageloader.util.loader.FileDownloader
-import com.tomclaw.imageloader.util.loader.LocalFileLoader
+import com.tomclaw.imageloader.util.loader.UrlLoader
+import com.tomclaw.imageloader.util.loader.FileLoader
+import java.util.concurrent.Executor
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 object SimpleImageLoader {
 
     private var imageLoader: ImageLoader? = null
 
-    fun Context.imageLoader(cacheSize: Long = 15728640L): ImageLoader {
+    fun Context.imageLoader(
+        decoder: Decoder = BitmapDecoder(),
+        fileProvider: FileProvider = FileProviderImpl(
+            cacheDir,
+            DiskCacheImpl(DiskLruCache.create(cacheDir, 15728640L)),
+            UrlLoader(),
+            FileLoader(assets),
+            ContentLoader(contentResolver)
+        ),
+        memoryCache: MemoryCache = MemoryCacheImpl(),
+        mainExecutor: Executor = MainExecutorImpl(),
+        backgroundExecutor: ExecutorService = Executors.newFixedThreadPool(10)
+    ): ImageLoader {
         return imageLoader ?: run {
-            val decoder: Decoder = BitmapDecoder()
-            val diskCache: DiskCache = DiskCacheImpl(DiskLruCache.create(cacheDir, cacheSize))
-            val fileProvider: FileProvider = FileProviderImpl(
-                cacheDir,
-                diskCache,
-                FileDownloader(),
-                LocalFileLoader(assets),
-                ContentLoader(contentResolver)
-            )
-            val memoryCache: MemoryCache = MemoryCacheImpl()
-            val mainExecutor = MainExecutorImpl()
-            val backgroundExecutor = Executors.newFixedThreadPool(10)
             val loader = ImageLoaderImpl(
                 fileProvider,
                 decoder,

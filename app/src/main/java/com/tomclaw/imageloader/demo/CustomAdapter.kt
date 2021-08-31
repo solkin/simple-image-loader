@@ -24,7 +24,7 @@ class CustomAdapter(private val list: List<ItemsViewModel>) :
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val purple = ContextCompat.getColor(holder.imageView.context, R.color.purple_500)
         val itemViewModel = list[position]
-        holder.imageView.fetch(itemViewModel.imageUrl) {
+        holder.imageView.fetch(itemViewModel.uriString) {
             centerCrop()
             withPlaceholder(R.drawable.ic_image)
             whenError(R.drawable.ic_image_remove, purple)
