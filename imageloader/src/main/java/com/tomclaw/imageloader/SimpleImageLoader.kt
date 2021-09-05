@@ -24,7 +24,11 @@ object SimpleImageLoader {
 
     private var imageLoader: ImageLoader? = null
 
-    fun Context.imageLoader(
+    fun Context.imageLoader(): ImageLoader {
+        return imageLoader ?: initImageLoader()
+    }
+
+    fun Context.initImageLoader(
         decoder: Decoder = BitmapDecoder(),
         fileProvider: FileProvider = FileProviderImpl(
             cacheDir,
@@ -37,17 +41,15 @@ object SimpleImageLoader {
         mainExecutor: Executor = MainExecutorImpl(),
         backgroundExecutor: ExecutorService = Executors.newFixedThreadPool(10)
     ): ImageLoader {
-        return imageLoader ?: run {
-            val loader = ImageLoaderImpl(
-                fileProvider,
-                decoder,
-                memoryCache,
-                mainExecutor,
-                backgroundExecutor
-            )
-            imageLoader = loader
-            return loader
-        }
+        val loader = ImageLoaderImpl(
+            fileProvider,
+            decoder,
+            memoryCache,
+            mainExecutor,
+            backgroundExecutor
+        )
+        imageLoader = loader
+        return loader
     }
 
 }
