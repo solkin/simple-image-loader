@@ -8,6 +8,34 @@ Modern image loading library for Android. Simple by design, powerful under the h
 - **Simple**: minimal boilerplate, simple API, based on every-day needs, extensible for features you need
 - **Flexible**: not found something you need, like need FTP transport, maybe custom memory or disk caching, SVG displaying support, etc? You can easily add it on your project, because Simple Image Loader is modular and full of simple abstractions.
 
+![GifDemo](/art/simple-image-loader-demo.gif)
+
+## Gradle
+
+Step 1. Add this in your root `build.gradle`
+
+```
+    allprojects {
+        repositories {
+            maven { url 'https://jitpack.io' }
+        }
+    }
+```
+
+Step 2. Add the dependency
+
+```
+    dependencies {
+        compile 'com.github.solkin:simple-image-loader:VERSION'
+    }
+```
+
+If you like to stay on the bleeding edge, or use certain commit as your dependency, you can use the short commit hash or anyBranch-SNAPSHOT as the version.
+
+## Demo
+
+Please see the demo app for library usage example.
+
 ## Quick Start
 
 To load an image into an `ImageView`, use the `load` extension function:
@@ -59,10 +87,10 @@ fun Handlers<ImageView>.centerInside() = apply {
 val imageLoader = context.imageLoader()
 ```
 
-To configure singleton `SimpleImageLoader`, access it prior to another calls and change any module you need:
+To configure custom singleton `SimpleImageLoader`, run `context.initImageLoader` prior to another calls and change any module you need:
 
 ```kotlin
-val imageLoader = context.imageLoader(
+val imageLoader = context.initImageLoader(
     decoder = BitmapDecoder(),                              // Maybe, you need extraordinary images decoder?
     fileProvider = FileProviderImpl(
         cacheDir,
