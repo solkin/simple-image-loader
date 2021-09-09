@@ -31,7 +31,7 @@ class ImageLoaderImpl(
         uriString: String,
         handlers: Handlers<T>
     ) {
-        val size = view.getSize()
+        val size = view.optSize() ?: run { waitSizeAsync(view, uriString, handlers); return }
         val key = generateKey(uriString, size.width, size.height)
         val prevTag = view.tag
         view.tag = key
@@ -53,6 +53,19 @@ class ImageLoaderImpl(
             ?.takeUnless { it.isRecycled() }
             ?.run { handlers.success.invoke(view, this) }
             ?: loadAsync(view, size, uriString, key, handlers)
+    }
+
+    private fun <T> waitSizeAsync(
+        view: ViewHolder<T>,
+        uriString: String,
+        handlers: Handlers<T>
+    ) {
+        backgroundExecutor.submit {
+            view.getSize()
+            mainExecutor.execute {
+                load(view, uriString, handlers)
+            }
+        }
     }
 
     private fun <T> loadAsync(
