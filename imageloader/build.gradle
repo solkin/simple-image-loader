@@ -45,7 +45,7 @@ afterEvaluate {
 
                 groupId = 'com.tomclaw.imageloader'
                 artifactId = 'imageloader'
-                version = '0.81'
+                version = '0.8.1'
             }
         }
     }
