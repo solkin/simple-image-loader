@@ -112,6 +112,9 @@ val imageLoader = context.initImageLoader(
 - Min SDK 14+
 - [Java 8+](https://coil-kt.github.io/coil/getting_started/#java-8)
 
+## R8 / Proguard
+
+Simple Image Loader doesn't require adding any extra rules.
 
 ## License
     MIT License
