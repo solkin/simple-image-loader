@@ -29,7 +29,7 @@ object SimpleImageLoader {
 
     @Suppress("MemberVisibilityCanBePrivate")
     fun Context.initImageLoader(
-        decoder: Decoder = BitmapDecoder(),
+        decoders: List<Decoder> = listOf(BitmapDecoder()),
         fileProvider: FileProvider = FileProviderImpl(
             cacheDir,
             DiskCacheImpl(DiskLruCache.create(cacheDir, 15728640L)),
@@ -43,7 +43,7 @@ object SimpleImageLoader {
     ): ImageLoader {
         val loader = ImageLoaderImpl(
             fileProvider,
-            listOf(decoder),
+            decoders,
             memoryCache,
             mainExecutor,
             backgroundExecutor

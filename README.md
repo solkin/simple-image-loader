@@ -91,7 +91,7 @@ To configure custom singleton `SimpleImageLoader`, run `context.initImageLoader`
 
 ```kotlin
 val imageLoader = context.initImageLoader(
-    decoder = BitmapDecoder(),                              // Maybe, you need extraordinary images decoder?
+    decoders = listOf(BitmapDecoder()),                     // Maybe, you need extraordinary images decoders?
     fileProvider = FileProviderImpl(
         cacheDir,
         DiskCacheImpl(                                      // LRU disk cache for your images
