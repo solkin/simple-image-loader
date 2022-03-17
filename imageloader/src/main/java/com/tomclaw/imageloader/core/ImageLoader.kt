@@ -18,7 +18,7 @@ interface ImageLoader {
 
 class ImageLoaderImpl(
     private val fileProvider: FileProvider,
-    private val decoder: Decoder,
+    private val decoders: List<Decoder>,
     private val memoryCache: MemoryCache,
     private val mainExecutor: Executor,
     private val backgroundExecutor: ExecutorService
@@ -79,9 +79,9 @@ class ImageLoaderImpl(
         handlers.placeholder.invoke(view)
         backgroundExecutor.submit {
             fileProvider.getFile(uriString)
-                .takeIf { it != null }
                 ?.let { file ->
-                    decoder.decode(file, size.width, size.height)
+                    decoders.find { decoder -> decoder.probe(file) }
+                        ?.run { decode(file, size.width, size.height) }
                 }
                 ?.let { result ->
                     memoryCache.put(key, result)

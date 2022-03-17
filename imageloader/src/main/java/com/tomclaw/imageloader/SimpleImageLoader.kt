@@ -3,7 +3,6 @@ package com.tomclaw.imageloader
 import android.content.Context
 import com.tomclaw.cache.DiskLruCache
 import com.tomclaw.imageloader.core.Decoder
-import com.tomclaw.imageloader.core.DiskCache
 import com.tomclaw.imageloader.core.DiskCacheImpl
 import com.tomclaw.imageloader.core.FileProvider
 import com.tomclaw.imageloader.core.FileProviderImpl
@@ -28,6 +27,7 @@ object SimpleImageLoader {
         return imageLoader ?: initImageLoader()
     }
 
+    @Suppress("MemberVisibilityCanBePrivate")
     fun Context.initImageLoader(
         decoder: Decoder = BitmapDecoder(),
         fileProvider: FileProvider = FileProviderImpl(
@@ -43,7 +43,7 @@ object SimpleImageLoader {
     ): ImageLoader {
         val loader = ImageLoaderImpl(
             fileProvider,
-            decoder,
+            listOf(decoder),
             memoryCache,
             mainExecutor,
             backgroundExecutor
