@@ -16,7 +16,6 @@ class ImageViewHolder(private val imageView: ImageView) : ViewHolder<ImageView> 
         var viewSize = ViewSize(0, 0)
         val latch = CountDownLatch(1)
 
-        val viewTreeObserver = imageView.viewTreeObserver
         val preDrawListener = object : ViewTreeObserver.OnPreDrawListener {
             private var isResumed = false
 
@@ -24,7 +23,7 @@ class ImageViewHolder(private val imageView: ImageView) : ViewHolder<ImageView> 
                 val size = optSize()
                 if (size != null) {
                     viewSize = size
-                    viewTreeObserver.removeOnPreDrawListener(this)
+                    imageView.viewTreeObserver.removeOnPreDrawListener(this)
 
                     if (!isResumed) {
                         isResumed = true
@@ -34,7 +33,7 @@ class ImageViewHolder(private val imageView: ImageView) : ViewHolder<ImageView> 
                 return true
             }
         }
-        viewTreeObserver.addOnPreDrawListener(preDrawListener)
+        imageView.viewTreeObserver.addOnPreDrawListener(preDrawListener)
 
         latch.await()
         return viewSize
