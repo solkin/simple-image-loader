@@ -2,7 +2,6 @@ package com.tomclaw.imageloader.util
 
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-import android.view.ViewTreeObserver
 import android.widget.ImageView
 import com.tomclaw.imageloader.core.ViewHolder
 import com.tomclaw.imageloader.core.ViewSize
@@ -13,29 +12,17 @@ class ImageViewHolder(private val imageView: ImageView) : ViewHolder<ImageView> 
     override fun getSize(): ViewSize {
         optSize()?.let { return it }
 
-        var viewSize = ViewSize(0, 0)
         val latch = CountDownLatch(1)
-
-        val preDrawListener = object : ViewTreeObserver.OnPreDrawListener {
-            private var isResumed = false
-
-            override fun onPreDraw(): Boolean {
-                val size = optSize()
-                if (size != null) {
-                    viewSize = size
-                    imageView.viewTreeObserver.removeOnPreDrawListener(this)
-
-                    if (!isResumed) {
-                        isResumed = true
-                        latch.countDown()
-                    }
-                }
-                return true
+        var viewSize = ViewSize(0, 0)
+        imageView.post {
+            val size = optSize()
+            if (size != null) {
+                viewSize = size
             }
+            latch.countDown()
         }
-        imageView.viewTreeObserver.addOnPreDrawListener(preDrawListener)
-
         latch.await()
+
         return viewSize
     }
 
