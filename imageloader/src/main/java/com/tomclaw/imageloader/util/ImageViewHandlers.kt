@@ -15,7 +15,6 @@ fun Handlers<ImageView>.fitCenter() = apply {
             setImageDrawable(result.getDrawable())
         }
     }
-    return this
 }
 
 fun Handlers<ImageView>.centerCrop() = apply {
@@ -27,7 +26,6 @@ fun Handlers<ImageView>.centerCrop() = apply {
             setImageDrawable(result.getDrawable())
         }
     }
-    return this
 }
 
 fun Handlers<ImageView>.centerInside() = apply {
@@ -42,11 +40,9 @@ fun Handlers<ImageView>.centerInside() = apply {
 }
 
 fun Handlers<ImageView>.crossfade(durationMs: Int = 300) = apply {
-    val previousSuccess = success
-    successHandler { viewHolder, result ->
+    successHandler { viewHolder, _ ->
         with(viewHolder.get()) {
             alpha = 0f
-            previousSuccess(viewHolder, result)
             animate()
                 .alpha(1f)
                 .setDuration(durationMs.toLong())

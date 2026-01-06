@@ -74,18 +74,43 @@ class HandlersTest {
     }
 
     @Test
-    fun `handler can be overwritten`() {
-        var firstCalled = false
-        var secondCalled = false
+    fun `successHandler composes multiple handlers`() {
+        val callOrder = mutableListOf<Int>()
 
         val handlers = Handlers<Any>()
-            .placeholderHandler { firstCalled = true }
-            .placeholderHandler { secondCalled = true }
+            .successHandler { _, _ -> callOrder.add(1) }
+            .successHandler { _, _ -> callOrder.add(2) }
+            .successHandler { _, _ -> callOrder.add(3) }
+
+        handlers.success.invoke(mock(), mock())
+
+        assertEquals(listOf(1, 2, 3), callOrder)
+    }
+
+    @Test
+    fun `placeholderHandler composes multiple handlers`() {
+        val callOrder = mutableListOf<Int>()
+
+        val handlers = Handlers<Any>()
+            .placeholderHandler { callOrder.add(1) }
+            .placeholderHandler { callOrder.add(2) }
 
         handlers.placeholder.invoke(mock())
 
-        assertTrue(!firstCalled)
-        assertTrue(secondCalled)
+        assertEquals(listOf(1, 2), callOrder)
+    }
+
+    @Test
+    fun `errorHandler composes multiple handlers`() {
+        val callOrder = mutableListOf<Int>()
+
+        val handlers = Handlers<Any>()
+            .errorHandler { callOrder.add(1) }
+            .errorHandler { callOrder.add(2) }
+
+        handlers.error.invoke(mock())
+
+        assertEquals(listOf(1, 2), callOrder)
     }
 }
 
