@@ -65,20 +65,18 @@ imageView.fetch("https://example.com/image.jpg")
 
 ## Configuration DSL
 
-Customize loading behavior with the trailing lambda:
+Customize loading behavior with a type-safe DSL:
 
 ```kotlin
 imageView.fetch("https://example.com/image.jpg") {
     centerCrop()
     crossfade()
-    withPlaceholder(R.drawable.placeholder)
-    whenError(R.drawable.error)
+    placeholder(R.drawable.loading)
+    error(R.drawable.error)
 }
 ```
 
-### Available Options
-
-#### Scale Types
+### Scale Types
 
 ```kotlin
 centerCrop()    // Scale and crop to fill the view
@@ -86,24 +84,98 @@ fitCenter()     // Scale to fit within the view bounds
 centerInside()  // Scale down only if larger than view
 ```
 
-#### Animations
+### Animations
 
 ```kotlin
 crossfade()         // Fade in with default 300ms duration
 crossfade(500)      // Fade in with custom duration (ms)
 ```
 
-#### Placeholders & Errors
+### Placeholders & Errors
 
 ```kotlin
-// Placeholder while loading
-withPlaceholder(R.drawable.placeholder)
-withPlaceholder(R.drawable.placeholder, tintColor)
-withPlaceholder(drawable)  // Pass Drawable directly
+placeholder(R.drawable.loading)   // Show while loading
+placeholder(drawable)             // Pass Drawable directly
 
-// Error state
-whenError(R.drawable.error)
-whenError(R.drawable.error, tintColor)
+error(R.drawable.error)           // Show on failure
+error(drawable)                   // Pass Drawable directly
+```
+
+### Transformations
+
+Apply image transformations:
+
+```kotlin
+imageView.fetch(url) {
+    transform {
+        circleCrop()           // Crop to circle
+        rounded(16)            // Rounded corners (px)
+        grayscale()            // Convert to grayscale
+        blur(25)               // Apply blur effect
+    }
+}
+
+// Or apply individually
+imageView.fetch(url) {
+    transform(CircleCropTransformation())
+}
+```
+
+### Callbacks
+
+```kotlin
+imageView.fetch(url) {
+    onLoading { imageView ->
+        // Called when loading starts
+    }
+    onSuccess { imageView, drawable ->
+        // Called on successful load
+    }
+    onError { imageView, throwable ->
+        // Called on failure
+    }
+}
+```
+
+### Cache Control
+
+```kotlin
+imageView.fetch(url) {
+    memoryCache(enabled = true)
+    diskCache(enabled = false)
+    
+    // Or with policies
+    memoryCache(CachePolicy.READ_ONLY)
+    diskCache(CachePolicy.DISABLED)
+}
+```
+
+### Size Override
+
+```kotlin
+imageView.fetch(url) {
+    size(200, 200)              // Fixed size
+    size(Size.ORIGINAL)         // Load at original size
+}
+```
+
+### Reusable Configurations
+
+Create configurations once, use everywhere:
+
+```kotlin
+// Define once
+val avatarConfig = imageRequest<ImageView> {
+    transform { circleCrop() }
+    crossfade()
+    placeholder(R.drawable.avatar_placeholder)
+    error(R.drawable.avatar_error)
+}
+
+// Reuse
+imageView1.fetch(url1, avatarConfig)
+imageView2.fetch(url2, avatarConfig)
+imageView3.fetch(url3, avatarConfig)
 ```
 
 ### Handler Composition
@@ -112,44 +184,46 @@ All handlers are **composable** — call multiple options and they all execute i
 
 ```kotlin
 imageView.fetch(url) {
-    centerCrop()    // 1. Sets scale type and image
-    crossfade()     // 2. Animates alpha from 0 to 1
+    centerCrop()    // 1. Sets scale type
+    crossfade()     // 2. Animates alpha
+    onSuccess { _, _ -> analytics.track("image_loaded") }  // 3. Track event
 }
 ```
 
-This allows combining behaviors without conflicts.
+## Custom Transformations
 
-## Custom Handlers
-
-Create your own DSL extensions:
+Create your own image transformations:
 
 ```kotlin
-// Grayscale effect on success
-fun Handlers<ImageView>.grayscale() = apply {
-    successHandler { viewHolder, result ->
-        val drawable = result.getDrawable()
-        drawable.colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { 
-            setSaturation(0f) 
-        })
-        viewHolder.get().setImageDrawable(drawable)
+class SepiaTransformation : Transformation {
+    override val key = "sepia"
+    
+    override fun transform(bitmap: Bitmap): Bitmap {
+        // Apply sepia effect
+        val result = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(result)
+        val paint = Paint().apply {
+            colorFilter = ColorMatrixColorFilter(sepiaMatrix)
+        }
+        canvas.drawBitmap(bitmap, 0f, 0f, paint)
+        return result
     }
 }
 
 // Usage
 imageView.fetch(url) {
-    centerCrop()
-    grayscale()
-    crossfade()
+    transform(SepiaTransformation())
 }
 ```
 
-### Handler Types
+### Built-in Transformations
 
-| Handler | When Called |
-|---------|-------------|
-| `successHandler { view, result -> }` | Image loaded successfully |
-| `placeholderHandler { view -> }` | Before loading starts |
-| `errorHandler { view -> }` | Loading failed |
+| Transformation | Description |
+|----------------|-------------|
+| `circleCrop()` | Crop image to circle |
+| `rounded(radiusPx)` | Round corners |
+| `grayscale()` | Convert to grayscale |
+| `blur(radius)` | Apply blur effect |
 
 ## Advanced Configuration
 
@@ -343,6 +417,103 @@ class MyAdapter : RecyclerView.Adapter<ViewHolder>() {
 ## R8 / ProGuard
 
 No additional rules required.
+
+## Migration from v0.9.x to v1.1.0
+
+### Breaking Changes
+
+v1.1.0 introduces a new type-safe DSL with `@DslMarker` annotation, transformations support, and improved API naming.
+
+### DSL Method Renames
+
+| v0.9.x | v1.1.0 |
+|--------|--------|
+| `withPlaceholder(R.drawable.ic)` | `placeholder(R.drawable.ic)` |
+| `withPlaceholder(drawable)` | `placeholder(drawable)` |
+| `whenError(R.drawable.ic)` | `error(R.drawable.ic)` |
+| `whenError(R.drawable.ic, color)` | `error(R.drawable.ic)` + custom handler |
+
+### Handler Changes
+
+| v0.9.x | v1.1.0 |
+|--------|--------|
+| `successHandler { viewHolder, result -> }` | `onSuccess { imageView, drawable -> }` |
+| `placeholderHandler { viewHolder -> }` | `onLoading { imageView -> }` |
+| `errorHandler { viewHolder -> }` | `onError { imageView, throwable -> }` |
+
+### Migration Example
+
+**Before (v0.9.x):**
+```kotlin
+import com.tomclaw.imageloader.util.centerCrop
+import com.tomclaw.imageloader.util.withPlaceholder
+import com.tomclaw.imageloader.util.whenError
+import com.tomclaw.imageloader.util.crossfade
+
+imageView.fetch(url) {
+    centerCrop()
+    crossfade()
+    withPlaceholder(R.drawable.placeholder)
+    whenError(R.drawable.error, Color.RED)
+}
+```
+
+**After (v1.1.0):**
+```kotlin
+import com.tomclaw.imageloader.util.fetch
+
+imageView.fetch(url) {
+    centerCrop()
+    crossfade()
+    placeholder(R.drawable.placeholder)
+    error(R.drawable.error)
+}
+```
+
+### New Features in v1.1.0
+
+#### Transformations
+```kotlin
+imageView.fetch(url) {
+    transform {
+        circleCrop()
+        rounded(16)
+        grayscale()
+    }
+}
+```
+
+#### Reusable Configurations
+```kotlin
+val config = imageRequest<ImageView> {
+    centerCrop()
+    crossfade()
+}
+imageView.fetch(url, config)
+```
+
+#### Cache Control
+```kotlin
+imageView.fetch(url) {
+    memoryCache(enabled = false)
+    diskCache(CachePolicy.READ_ONLY)
+}
+```
+
+#### Direct Repository Access
+```kotlin
+// For Compose or custom UI
+val repository = context.imageRepository()
+val result = repository.load(url, width, height)
+```
+
+### Removed
+
+- `withPlaceholder(drawableRes, tintColor)` — use custom `onLoading` handler instead
+- `whenError(drawableRes, tintColor)` — use custom `onError` handler instead
+- `fetchLegacy()` — use `fetch()` with new DSL
+- All legacy DSL functions (`centerCrop()`, `fitCenter()`, etc. as `Handlers` extensions)
+- Direct assignment to `Handlers.success/placeholder/error` fields (now `private set`)
 
 ## License
 

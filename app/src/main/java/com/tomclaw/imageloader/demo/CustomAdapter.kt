@@ -5,12 +5,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.tomclaw.imageloader.util.centerCrop
 import com.tomclaw.imageloader.util.fetch
-import com.tomclaw.imageloader.util.whenError
-import com.tomclaw.imageloader.util.withPlaceholder
 
 class CustomAdapter(private val list: List<ItemsViewModel>) :
     RecyclerView.Adapter<CustomAdapter.ViewHolder>() {
@@ -22,12 +18,12 @@ class CustomAdapter(private val list: List<ItemsViewModel>) :
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val purple = ContextCompat.getColor(holder.imageView.context, R.color.purple_500)
         val itemViewModel = list[position]
         holder.imageView.fetch(itemViewModel.uriString) {
             centerCrop()
-            withPlaceholder(R.drawable.ic_image)
-            whenError(R.drawable.ic_image_remove, purple)
+            crossfade()
+            placeholder(R.drawable.ic_image)
+            error(R.drawable.ic_image_remove)
         }
 
         holder.titleView.text = itemViewModel.title
