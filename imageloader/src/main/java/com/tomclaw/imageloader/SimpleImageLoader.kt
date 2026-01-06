@@ -8,6 +8,8 @@ import com.tomclaw.imageloader.core.FileProvider
 import com.tomclaw.imageloader.core.FileProviderImpl
 import com.tomclaw.imageloader.core.ImageLoader
 import com.tomclaw.imageloader.core.ImageLoaderImpl
+import com.tomclaw.imageloader.core.ImageRepository
+import com.tomclaw.imageloader.core.ImageRepositoryImpl
 import com.tomclaw.imageloader.core.MainExecutorImpl
 import com.tomclaw.imageloader.core.MemoryCache
 import com.tomclaw.imageloader.core.MemoryCacheImpl
@@ -23,10 +25,26 @@ object SimpleImageLoader {
 
     private var imageLoader: ImageLoader? = null
 
+    /**
+     * Returns the singleton ImageLoader instance.
+     * Initializes with default configuration if not already initialized.
+     */
     fun Context.imageLoader(): ImageLoader {
         return imageLoader ?: initImageLoader()
     }
 
+    /**
+     * Returns the ImageRepository for direct access to loading/caching.
+     * Useful for Compose or custom UI frameworks.
+     */
+    fun Context.imageRepository(): ImageRepository {
+        return imageLoader().repository
+    }
+
+    /**
+     * Initializes the ImageLoader with custom configuration.
+     * Call this before first use if you need custom settings.
+     */
     @Suppress("MemberVisibilityCanBePrivate")
     fun Context.initImageLoader(
         decoders: List<Decoder> = listOf(BitmapDecoder()),
@@ -41,10 +59,14 @@ object SimpleImageLoader {
         mainExecutor: Executor = MainExecutorImpl(),
         backgroundExecutor: ExecutorService = Executors.newFixedThreadPool(10)
     ): ImageLoader {
-        val loader = ImageLoaderImpl(
+        val repository = ImageRepositoryImpl(
             fileProvider,
             decoders,
             memoryCache,
+            backgroundExecutor
+        )
+        val loader = ImageLoaderImpl(
+            repository,
             mainExecutor,
             backgroundExecutor
         )

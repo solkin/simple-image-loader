@@ -1,13 +1,24 @@
 package com.tomclaw.imageloader.core
 
 import java.lang.ref.WeakReference
-import java.security.MessageDigest
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
 
+/**
+ * UI-aware image loader that binds loading results to ViewHolder.
+ * Uses [ImageRepository] for actual loading and caching.
+ */
 interface ImageLoader {
 
+    /**
+     * The underlying repository for direct access to loading/caching.
+     */
+    val repository: ImageRepository
+
+    /**
+     * Loads an image into a ViewHolder with callback handlers.
+     */
     fun <T> load(
         view: ViewHolder<T>,
         uriString: String,
@@ -17,9 +28,7 @@ interface ImageLoader {
 }
 
 class ImageLoaderImpl(
-    private val fileProvider: FileProvider,
-    private val decoders: List<Decoder>,
-    private val memoryCache: MemoryCache,
+    override val repository: ImageRepository,
     private val mainExecutor: Executor,
     private val backgroundExecutor: ExecutorService
 ) : ImageLoader {
@@ -32,7 +41,7 @@ class ImageLoaderImpl(
         handlers: Handlers<T>
     ) {
         val size = view.optSize() ?: run { waitSizeAsync(view, uriString, handlers); return }
-        val key = generateKey(uriString, size.width, size.height)
+        val key = repository.generateKey(uriString, size.width, size.height)
         val prevTag = view.tag
         view.tag = key
         val isLoading = prevTag
@@ -49,8 +58,8 @@ class ImageLoaderImpl(
             }
         if (isLoading == true) return
 
-        memoryCache.get(key)
-            ?.takeUnless { it.isRecycled() }
+        // Check cache first
+        repository.getCached(uriString, size.width, size.height)
             ?.run { handlers.success.invoke(view, this) }
             ?: loadAsync(view, size, uriString, key, handlers)
     }
@@ -75,41 +84,26 @@ class ImageLoaderImpl(
         key: String,
         handlers: Handlers<T>
     ) {
-        val weakImageView = WeakReference(view)
+        val weakView = WeakReference(view)
         handlers.placeholder.invoke(view)
         backgroundExecutor.submit {
-            fileProvider.getFile(uriString)
-                ?.let { file ->
-                    decoders.find { decoder -> decoder.probe(file) }
-                        ?.run { decode(file, size.width, size.height) }
-                }
+            repository.load(uriString, size.width, size.height)
                 ?.let { result ->
-                    memoryCache.put(key, result)
                     mainExecutor.execute {
-                        weakImageView.get()?.apply {
+                        weakView.get()?.apply {
                             if (tag == key) {
-                                handlers.success.invoke(view, result)
+                                handlers.success.invoke(this, result)
                             }
                         }
                         futures.remove(key)
                     }
-                } ?: handlers.error.invoke(view)
+                } ?: mainExecutor.execute {
+                    weakView.get()?.let { handlers.error.invoke(it) }
+                    futures.remove(key)
+                }
         }.let { future ->
-            futures[uriString] = future
+            futures[key] = future
         }
-    }
-
-    private fun generateKey(url: String, width: Int, height: Int): String {
-        return url.toSHA1() + "_" + width + "_" + height
-    }
-
-    private fun String.toSHA1(): String {
-        val bytes = MessageDigest.getInstance("SHA-1").digest(this.toByteArray())
-        return bytes.toHex()
-    }
-
-    private fun ByteArray.toHex(): String {
-        return joinToString("") { "%02x".format(it) }
     }
 
 }

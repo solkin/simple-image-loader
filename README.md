@@ -1,140 +1,371 @@
-# Simple Image Loader [![](https://jitpack.io/v/solkin/simple-image-loader.svg)](https://jitpack.io/#solkin/simple-image-loader)
+# Simple Image Loader
+
+[![](https://jitpack.io/v/solkin/simple-image-loader.svg)](https://jitpack.io/#solkin/simple-image-loader)
 
 Modern image loading library for Android. Simple by design, powerful under the hood.
 
-- **Kotlin**: Simple Image Loader is Kotlin-native and uses no any dependencies except myself [Disk LRU Cache](https://github.com/solkin/disk-lru-cache)
-- **Fast**: contains lots of optimizations: memory cache, disk cache, images downsampling, requests cancelling and more
-- **Lightweight**: ~18Kb 😄
-- **Simple**: minimal boilerplate, simple API, based on every-day needs, extensible for features you need
-- **Flexible**: not found something you need, like need FTP transport, maybe custom memory or disk caching, SVG displaying support, etc? You can easily add it on your project, because Simple Image Loader is modular and full of simple abstractions.
-
 ![GifDemo](/art/simple-image-loader-demo.gif)
 
-## Gradle
+## Features
 
-Step 1. Add this in your root `build.gradle`
+| Feature | Description |
+|---------|-------------|
+| **Kotlin-first** | Native Kotlin API with extension functions and DSL |
+| **Lightweight** | Only ~18Kb, single dependency ([Disk LRU Cache](https://github.com/solkin/disk-lru-cache)) |
+| **Fast** | Memory cache, disk cache, image downsampling, request cancellation |
+| **Composable** | Chain multiple handlers — they all execute in order |
+| **Extensible** | Add custom loaders, decoders, or cache implementations |
 
-```
-    allprojects {
-        repositories {
-            maven { url 'https://jitpack.io' }
-        }
+## Installation
+
+### Step 1. Add JitPack repository
+
+```groovy
+// settings.gradle.kts (recommended)
+dependencyResolutionManagement {
+    repositories {
+        maven { url = uri("https://jitpack.io") }
     }
-```
+}
 
-Step 2. Add the dependency
-
-```
-    dependencies {
-        compile 'com.github.solkin:simple-image-loader:VERSION'
+// or in root build.gradle
+allprojects {
+    repositories {
+        maven { url 'https://jitpack.io' }
     }
+}
 ```
 
-If you like to stay on the bleeding edge, or use certain commit as your dependency, you can use the short commit hash or anyBranch-SNAPSHOT as the version.
+### Step 2. Add the dependency
 
-## Demo
+```groovy
+dependencies {
+    implementation 'com.github.solkin:simple-image-loader:VERSION'
+}
+```
 
-Please see the demo app for library usage example.
+> 💡 Use a specific release tag, short commit hash, or `anyBranch-SNAPSHOT` as VERSION.
 
 ## Quick Start
 
-To load an image into an `ImageView`, use the `load` extension function:
+Load an image into an `ImageView` with a single line:
 
 ```kotlin
-// URL
-imageView.load("https://www.example.com/image.jpg")
-
-// File
-imageView.load("file:///path/to/image.jpg")
-
-// Asset
-imageView.load("file:///android_asset/image.jpg")
-
-// Content
-imageView.load("content://media/external_primary/images/media/90")
+imageView.fetch("https://example.com/image.jpg")
 ```
 
-Requests can be configured with an optional trailing lambda:
+### Supported URI Schemes
+
+| Scheme | Example |
+|--------|---------|
+| HTTP/HTTPS | `https://example.com/image.jpg` |
+| File | `file:///sdcard/photo.jpg` |
+| Asset | `file:///android_asset/image.jpg` |
+| Content | `content://media/external/images/media/123` |
+
+## Configuration DSL
+
+Customize loading behavior with the trailing lambda:
 
 ```kotlin
-imageView.load("https://www.example.com/image.jpg") {
+imageView.fetch("https://example.com/image.jpg") {
     centerCrop()
-    withPlaceholder(R.drawable.ic_placeholder)
-    whenError(R.drawable.ic_error, redColor)
+    crossfade()
+    withPlaceholder(R.drawable.placeholder)
+    whenError(R.drawable.error)
 }
 ```
 
-Also, you can add options by creating extension functions:
+### Available Options
+
+#### Scale Types
 
 ```kotlin
-fun Handlers<ImageView>.centerInside() = apply {
+centerCrop()    // Scale and crop to fill the view
+fitCenter()     // Scale to fit within the view bounds
+centerInside()  // Scale down only if larger than view
+```
+
+#### Animations
+
+```kotlin
+crossfade()         // Fade in with default 300ms duration
+crossfade(500)      // Fade in with custom duration (ms)
+```
+
+#### Placeholders & Errors
+
+```kotlin
+// Placeholder while loading
+withPlaceholder(R.drawable.placeholder)
+withPlaceholder(R.drawable.placeholder, tintColor)
+withPlaceholder(drawable)  // Pass Drawable directly
+
+// Error state
+whenError(R.drawable.error)
+whenError(R.drawable.error, tintColor)
+```
+
+### Handler Composition
+
+All handlers are **composable** — call multiple options and they all execute in sequence:
+
+```kotlin
+imageView.fetch(url) {
+    centerCrop()    // 1. Sets scale type and image
+    crossfade()     // 2. Animates alpha from 0 to 1
+}
+```
+
+This allows combining behaviors without conflicts.
+
+## Custom Handlers
+
+Create your own DSL extensions:
+
+```kotlin
+// Grayscale effect on success
+fun Handlers<ImageView>.grayscale() = apply {
     successHandler { viewHolder, result ->
-        with(viewHolder.get()) {
-            setImageDrawable(null)
-            scaleType = ImageView.ScaleType.CENTER_INSIDE
-            colorFilter = null
-            setImageDrawable(result.getDrawable())
+        val drawable = result.getDrawable()
+        drawable.colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { 
+            setSaturation(0f) 
+        })
+        viewHolder.get().setImageDrawable(drawable)
+    }
+}
+
+// Usage
+imageView.fetch(url) {
+    centerCrop()
+    grayscale()
+    crossfade()
+}
+```
+
+### Handler Types
+
+| Handler | When Called |
+|---------|-------------|
+| `successHandler { view, result -> }` | Image loaded successfully |
+| `placeholderHandler { view -> }` | Before loading starts |
+| `errorHandler { view -> }` | Loading failed |
+
+## Advanced Configuration
+
+### Custom ImageLoader
+
+Access or configure the singleton loader:
+
+```kotlin
+// Get the loader
+val imageLoader = context.imageLoader()
+
+// Initialize with custom configuration (call before first use)
+context.initImageLoader(
+    decoders = listOf(BitmapDecoder()),
+    fileProvider = FileProviderImpl(
+        cacheDir,
+        DiskCacheImpl(DiskLruCache.create(cacheDir, 15_728_640L)),
+        UrlLoader(),
+        FileLoader(assets),
+        ContentLoader(contentResolver)
+    ),
+    memoryCache = MemoryCacheImpl(),
+    mainExecutor = MainExecutorImpl(),
+    backgroundExecutor = Executors.newFixedThreadPool(10)
+)
+```
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                       UI Layer                              │
+├────────────────────────────┬────────────────────────────────┤
+│   ImageView.fetch()        │     Compose (coming soon)      │
+│   (View binding, DSL)      │     (AsyncImage Composable)    │
+└────────────────────────────┴────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    ImageRepository                          │
+│         (Core loading & caching, UI-agnostic)               │
+├─────────────────────────────────────────────────────────────┤
+│  • load(url, width, height): Result?                        │
+│  • loadAsync(url, width, height): Future<Result?>           │
+│  • getCached(url, width, height): Result?                   │
+└─────────────────────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Infrastructure Layer                      │
+├─────────────────┬─────────────┬─────────────────────────────┤
+│   MemoryCache   │  DiskCache  │       FileProvider          │
+│     (LRU)       │    (LRU)    │  ┌───────────────────────┐  │
+├─────────────────┼─────────────┤  │      Loaders          │  │
+│     Decoder     │             │  │  • UrlLoader (http)   │  │
+│    (Bitmap)     │             │  │  • FileLoader (file)  │  │
+│                 │             │  │  • ContentLoader      │  │
+└─────────────────┴─────────────┴──┴───────────────────────┴──┘
+```
+
+### Direct Repository Access
+
+For custom UI frameworks or advanced use cases, access the repository directly:
+
+```kotlin
+// Get the repository (UI-agnostic)
+val repository = context.imageRepository()
+
+// Load synchronously (call from background thread)
+val result = repository.load(url, width, height)
+val drawable = result?.getDrawable()
+
+// Load asynchronously
+val future = repository.loadAsync(url, width, height)
+val result = future.get()
+
+// Check cache only
+val cached = repository.getCached(url, width, height)
+```
+
+### Adding Custom Loaders
+
+Support new URI schemes by implementing `Loader`:
+
+```kotlin
+class FtpLoader : Loader {
+    override val schemes = listOf("ftp", "sftp")
+    
+    override fun load(uriString: String, file: File): Boolean {
+        // Download file via FTP
+        return success
+    }
+}
+
+// Register in FileProvider
+context.initImageLoader(
+    fileProvider = FileProviderImpl(
+        cacheDir, diskCache,
+        UrlLoader(), 
+        FileLoader(assets),
+        FtpLoader()  // Your custom loader
+    )
+)
+```
+
+### Adding Custom Decoders
+
+Support new image formats by implementing `Decoder`:
+
+```kotlin
+class SvgDecoder : Decoder {
+    override fun probe(file: File): Boolean {
+        return file.name.endsWith(".svg")
+    }
+    
+    override fun decode(file: File, width: Int, height: Int): Result? {
+        // Decode SVG to Bitmap/Drawable
+        return SvgResult(drawable)
+    }
+}
+```
+
+## Jetpack Compose (Experimental)
+
+Use `ImageRepository` directly with Compose:
+
+```kotlin
+@Composable
+fun AsyncImage(
+    url: String,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Fit
+) {
+    var painter by remember { mutableStateOf<Painter?>(null) }
+    val context = LocalContext.current
+    val density = LocalDensity.current
+
+    BoxWithConstraints(modifier) {
+        val widthPx = with(density) { maxWidth.roundToPx() }
+        val heightPx = with(density) { maxHeight.roundToPx() }
+
+        LaunchedEffect(url, widthPx, heightPx) {
+            withContext(Dispatchers.IO) {
+                val result = context.imageRepository().load(url, widthPx, heightPx)
+                result?.getDrawable()?.let { drawable ->
+                    painter = BitmapDrawable(
+                        context.resources,
+                        (drawable as BitmapDrawable).bitmap
+                    ).toPainter()
+                }
+            }
+        }
+
+        painter?.let {
+            Image(
+                painter = it,
+                contentDescription = contentDescription,
+                contentScale = contentScale,
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }
 ```
 
-#### Image Loader
+> A dedicated `imageloader-compose` module is planned for future releases.
 
-`imageView.load` uses the singleton `SimpleImageLoader`. The singleton `SimpleImageLoader` can be accessed using an extension function:
+## RecyclerView Usage
 
-```kotlin
-val imageLoader = context.imageLoader()
-```
-
-To configure custom singleton `SimpleImageLoader`, run `context.initImageLoader` prior to another calls and change any module you need:
+Works seamlessly with RecyclerView — previous requests are automatically cancelled:
 
 ```kotlin
-val imageLoader = context.initImageLoader(
-    decoders = listOf(BitmapDecoder()),                     // Maybe, you need extraordinary images decoders?
-    fileProvider = FileProviderImpl(
-        cacheDir,
-        DiskCacheImpl(                                      // LRU disk cache for your images
-            DiskLruCache.create(cacheDir, 15728640L)
-        ),
-        UrlLoader(),                                        // vararg; http/https scheme support
-        FileLoader(assets),                                 // vararg; file scheme support
-        ContentLoader(contentResolver)                      // vararg; content scheme support
-    ),
-    memoryCache = MemoryCacheImpl(),                        // Caching images on memory
-    mainExecutor = MainExecutorImpl(),                      // Simple executor for main thread
-    backgroundExecutor = Executors.newFixedThreadPool(10)   // Executor service for background operations
-)
+class MyAdapter : RecyclerView.Adapter<ViewHolder>() {
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        holder.imageView.fetch(items[position].imageUrl) {
+            centerCrop()
+            crossfade()
+            withPlaceholder(R.drawable.placeholder)
+            whenError(R.drawable.error)
+        }
+    }
+}
 ```
 
 ## Requirements
 
-- Min SDK 14+
-- [Java 8+](https://coil-kt.github.io/coil/getting_started/#java-8)
+- **Min SDK**: 16+
+- **Java**: 8+
 
-## R8 / Proguard
+## R8 / ProGuard
 
-Simple Image Loader doesn't require adding any extra rules.
+No additional rules required.
 
 ## License
-    MIT License
 
-    Copyright (c) 2021 Igor Solkin
+```
+MIT License
 
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
+Copyright (c) 2021 Igor Solkin
 
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
