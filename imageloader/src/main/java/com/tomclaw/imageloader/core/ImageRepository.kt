@@ -8,6 +8,9 @@ import java.util.concurrent.Future
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
+private const val TAG = "ImageRepository"
+private val log: Logger get() = SimpleImageLoaderLog.logger
+
 /**
  * Core image loading and caching logic.
  * This class is UI-agnostic and can be used with any UI framework.
@@ -65,10 +68,17 @@ class ImageRepositoryImpl(
         // Check memory cache first (lock-free fast path)
         memoryCache.get(key)
             ?.takeUnless { it.isRecycled() }
-            ?.let { return it }
+            ?.let {
+                log.d(TAG, "Memory cache hit: $url")
+                return it
+            }
 
         // Get or create lock for this key to coalesce duplicate requests
         val lock = loadingLocks.computeIfAbsent(key) { ReentrantLock() }
+        val waitingForLock = lock.isLocked
+        if (waitingForLock) {
+            log.d(TAG, "Waiting for coalesced request: $url")
+        }
 
         return lock.withLock {
             try {
@@ -76,19 +86,37 @@ class ImageRepositoryImpl(
                 // (another thread might have loaded it while we waited)
                 memoryCache.get(key)
                     ?.takeUnless { it.isRecycled() }
-                    ?.let { return it }
+                    ?.let {
+                        log.d(TAG, "Memory cache hit after wait: $url")
+                        return it
+                    }
 
                 // Load from disk/network
-                val file = fileProvider.getFile(url) ?: return null
+                log.d(TAG, "FileProvider.getFile: $url")
+                val file = fileProvider.getFile(url)
+                if (file == null) {
+                    log.e(TAG, "FileProvider returned null: $url")
+                    return null
+                }
+                log.d(TAG, "File obtained: ${file.absolutePath} (${file.length()} bytes)")
 
                 // Find suitable decoder and decode
-                val result = decoders
-                    .find { decoder -> decoder.probe(file) }
-                    ?.decode(file, width, height)
-                    ?: return null
+                val decoder = decoders.find { decoder -> decoder.probe(file) }
+                if (decoder == null) {
+                    log.e(TAG, "No decoder found for: $url")
+                    return null
+                }
+
+                log.d(TAG, "Decoding: $url (${width}x${height})")
+                val result = decoder.decode(file, width, height)
+                if (result == null) {
+                    log.e(TAG, "Decoder returned null: $url")
+                    return null
+                }
 
                 // Cache the result
                 memoryCache.put(key, result)
+                log.d(TAG, "Cached result: $url (${result.getByteCount()} bytes)")
 
                 result
             } finally {

@@ -3,6 +3,9 @@ package com.tomclaw.imageloader.core
 import android.net.Uri
 import java.io.File
 
+private const val TAG = "FileProvider"
+private val log: Logger get() = SimpleImageLoaderLog.logger
+
 interface FileProvider {
 
     fun getFile(url: String): File? = getFile(Uri.parse(url))
@@ -26,7 +29,13 @@ class FileProviderImpl(
     }
 
     override fun getFile(uri: Uri): File? {
-        return diskCache.get(uri.toString()) ?: loadIntoCache(uri)
+        val cached = diskCache.get(uri.toString())
+        if (cached != null) {
+            log.d(TAG, "Disk cache hit: $uri")
+            return cached
+        }
+        log.d(TAG, "Disk cache miss: $uri")
+        return loadIntoCache(uri)
     }
 
     private fun loadIntoCache(uri: Uri): File? {
@@ -34,15 +43,27 @@ class FileProviderImpl(
         try {
             tempFile = File.createTempFile("file", ".tmp", cacheDir)
 
-            val loader = loaders[uri.scheme] ?: return null
+            val loader = loaders[uri.scheme]
+            if (loader == null) {
+                log.e(TAG, "No loader for scheme: ${uri.scheme}")
+                return null
+            }
 
             val uriString = uri.toString()
+            log.d(TAG, "Loading: $uriString")
 
-            return loader.load(uriString, tempFile)
-                .takeIf { it }
-                ?.let { diskCache.put(uriString, tempFile) }
+            val success = loader.load(uriString, tempFile)
+            if (!success) {
+                log.e(TAG, "Loader failed: $uriString")
+                return null
+            }
+
+            log.d(TAG, "Loaded ${tempFile.length()} bytes: $uriString")
+            val cachedFile = diskCache.put(uriString, tempFile)
+            log.d(TAG, "Cached to disk: ${cachedFile.absolutePath}")
+            return cachedFile
         } catch (ex: Throwable) {
-            ex.printStackTrace()
+            log.e(TAG, "Exception loading $uri: ${ex.message}", ex)
         } finally {
             tempFile?.delete()
         }

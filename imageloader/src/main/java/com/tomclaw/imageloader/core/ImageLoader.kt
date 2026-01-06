@@ -7,6 +7,9 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicLong
 
+private const val TAG = "ImageLoader"
+private val log: Logger get() = SimpleImageLoaderLog.logger
+
 /**
  * UI-aware image loader that binds loading results to ViewHolder.
  * Uses [ImageRepository] for actual loading and caching.
@@ -44,7 +47,11 @@ class ImageLoaderImpl(
         uriString: String,
         handlers: Handlers<T>
     ) {
-        val size = view.optSize() ?: run { waitSizeAsync(view, uriString, handlers); return }
+        val size = view.optSize() ?: run {
+            log.d(TAG, "Waiting for size: $uriString")
+            waitSizeAsync(view, uriString, handlers)
+            return
+        }
         val cacheKey = repository.generateKey(uriString, size.width, size.height)
 
         // Cancel previous request for this view
@@ -52,10 +59,14 @@ class ImageLoaderImpl(
         if (prevTag is RequestTag) {
             if (prevTag.cacheKey == cacheKey && futures[prevTag.requestId]?.isDone == false) {
                 // Same URL and still loading — skip
+                log.d(TAG, "Skip duplicate request #${prevTag.requestId}: $uriString")
                 return
             }
             // Different URL or completed — cancel previous
-            futures.remove(prevTag.requestId)?.cancel(true)
+            val cancelled = futures.remove(prevTag.requestId)?.cancel(true)
+            if (cancelled == true) {
+                log.d(TAG, "Cancelled request #${prevTag.requestId}")
+            }
         }
 
         // Generate unique request ID for this view
@@ -63,10 +74,17 @@ class ImageLoaderImpl(
         val requestTag = RequestTag(requestId, cacheKey)
         view.tag = requestTag
 
+        log.d(TAG, "Request #$requestId: $uriString (${size.width}x${size.height})")
+
         // Check cache first
-        repository.getCached(uriString, size.width, size.height)
-            ?.run { handlers.success.invoke(view, this) }
-            ?: loadAsync(view, size, uriString, requestTag, handlers)
+        val cached = repository.getCached(uriString, size.width, size.height)
+        if (cached != null) {
+            log.d(TAG, "Cache hit #$requestId: $uriString")
+            handlers.success.invoke(view, cached)
+        } else {
+            log.d(TAG, "Cache miss #$requestId, loading: $uriString")
+            loadAsync(view, size, uriString, requestTag, handlers)
+        }
     }
 
     private fun <T> waitSizeAsync(
@@ -89,10 +107,13 @@ class ImageLoaderImpl(
         requestTag: RequestTag,
         handlers: Handlers<T>
     ) {
-        val weakView = WeakReference(view)
+        // Keep WeakReference to the actual view (T), not the ViewHolder wrapper
+        val actualView = view.get()
+        val weakActualView = WeakReference(actualView)
         handlers.placeholder.invoke(view)
 
         val future = backgroundExecutor.submit {
+            log.d(TAG, "Loading #${requestTag.requestId}: $uriString")
             val result = repository.load(uriString, size.width, size.height)
 
             mainExecutor.execute {
@@ -100,14 +121,24 @@ class ImageLoaderImpl(
                 futures.remove(requestTag.requestId)
 
                 // Only update view if request is still valid
-                val currentView = weakView.get() ?: return@execute
-                val currentTag = currentView.tag
+                val currentActualView = weakActualView.get()
+                if (currentActualView == null) {
+                    log.w(TAG, "View collected #${requestTag.requestId}: $uriString")
+                    return@execute
+                }
+
+                // Check tag on the actual view (stored in ViewHolder which wraps it)
+                val currentTag = view.tag
                 if (currentTag is RequestTag && currentTag.requestId == requestTag.requestId) {
                     if (result != null) {
-                        handlers.success.invoke(currentView, result)
+                        log.d(TAG, "Success #${requestTag.requestId}: $uriString")
+                        handlers.success.invoke(view, result)
                     } else {
-                        handlers.error.invoke(currentView)
+                        log.e(TAG, "Error #${requestTag.requestId}: $uriString")
+                        handlers.error.invoke(view)
                     }
+                } else {
+                    log.w(TAG, "Stale #${requestTag.requestId}: $uriString (tag mismatch)")
                 }
             }
         }

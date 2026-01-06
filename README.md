@@ -346,6 +346,38 @@ class SvgDecoder : Decoder {
 }
 ```
 
+### Debug Logging
+
+Logging is disabled by default for production. Enable it for debugging:
+
+```kotlin
+// Enable built-in Logcat output
+SimpleImageLoaderLog.logger = Logger.LOGCAT
+
+// Or use a custom logger (e.g., Timber)
+SimpleImageLoaderLog.logger = object : Logger {
+    override fun d(tag: String, message: String) {
+        Timber.tag(tag).d(message)
+    }
+
+    override fun w(tag: String, message: String) {
+        Timber.tag(tag).w(message)
+    }
+
+    override fun e(tag: String, message: String, throwable: Throwable?) {
+        Timber.tag(tag).e(throwable, message)
+    }
+}
+
+// Disable logging (default)
+SimpleImageLoaderLog.logger = Logger.NONE
+```
+
+When enabled, logs include:
+- Request lifecycle (`ImageLoader` tag)
+- Cache hits/misses (`ImageRepository` tag)
+- Disk operations (`FileProvider` tag)
+
 ## Jetpack Compose (Experimental)
 
 Use `ImageRepository` directly with Compose:
