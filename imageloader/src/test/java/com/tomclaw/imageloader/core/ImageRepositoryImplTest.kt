@@ -152,5 +152,60 @@ class ImageRepositoryImplTest {
 
         assertEquals(decodedResult, result)
     }
+
+    @Test
+    fun `concurrent loads for same URL are coalesced`() {
+        val file = mock<File>()
+        val decodedResult = mock<Result>()
+        whenever(memoryCache.get(any())).thenReturn(null)
+        whenever(fileProvider.getFile(any())).thenAnswer {
+            Thread.sleep(100) // Simulate slow network
+            file
+        }
+        whenever(decoder.probe(file)).thenReturn(true)
+        whenever(decoder.decode(file, 100, 100)).thenReturn(decodedResult)
+
+        val latch = java.util.concurrent.CountDownLatch(5)
+        val results = java.util.concurrent.ConcurrentLinkedQueue<Result?>()
+        val executor = java.util.concurrent.Executors.newFixedThreadPool(5)
+
+        // Launch 5 concurrent requests for the same URL
+        repeat(5) {
+            executor.submit {
+                val result = repository.load("http://example.com/image.jpg", 100, 100)
+                results.add(result)
+                latch.countDown()
+            }
+        }
+
+        latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
+
+        // All 5 should get results
+        assertEquals(5, results.size)
+        results.forEach { assertNotNull(it) }
+
+        // FileProvider should only be called once (coalesced)
+        verify(fileProvider, times(1)).getFile(any())
+    }
+
+    @Test
+    fun `second request uses cache after first completes`() {
+        val file = mock<File>()
+        val decodedResult = mock<Result>()
+        whenever(decodedResult.isRecycled()).thenReturn(false)
+        whenever(memoryCache.get(any())).thenReturn(null).thenReturn(decodedResult)
+        whenever(fileProvider.getFile(any())).thenReturn(file)
+        whenever(decoder.probe(file)).thenReturn(true)
+        whenever(decoder.decode(file, 100, 100)).thenReturn(decodedResult)
+
+        // First load
+        repository.load("http://example.com/image.jpg", 100, 100)
+        // Second load should hit cache
+        val result2 = repository.load("http://example.com/image.jpg", 100, 100)
+
+        assertEquals(decodedResult, result2)
+        // FileProvider called only once
+        verify(fileProvider, times(1)).getFile(any())
+    }
 }
 

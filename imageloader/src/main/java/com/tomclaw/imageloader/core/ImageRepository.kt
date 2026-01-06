@@ -2,8 +2,11 @@ package com.tomclaw.imageloader.core
 
 import java.security.MessageDigest
 import java.util.concurrent.Callable
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * Core image loading and caching logic.
@@ -13,6 +16,7 @@ interface ImageRepository {
 
     /**
      * Loads an image synchronously. Call from background thread.
+     * Duplicate requests for the same URL are coalesced.
      * @param url The image URL (supports http, https, file, content schemes)
      * @param width Target width for downsampling
      * @param height Target height for downsampling
@@ -52,27 +56,46 @@ class ImageRepositoryImpl(
     private val backgroundExecutor: ExecutorService
 ) : ImageRepository {
 
+    // Locks for coalescing duplicate requests to the same URL
+    private val loadingLocks = ConcurrentHashMap<String, ReentrantLock>()
+
     override fun load(url: String, width: Int, height: Int): Result? {
         val key = generateKey(url, width, height)
 
-        // Check memory cache first
+        // Check memory cache first (lock-free fast path)
         memoryCache.get(key)
             ?.takeUnless { it.isRecycled() }
             ?.let { return it }
 
-        // Load from disk/network
-        val file = fileProvider.getFile(url) ?: return null
+        // Get or create lock for this key to coalesce duplicate requests
+        val lock = loadingLocks.computeIfAbsent(key) { ReentrantLock() }
 
-        // Find suitable decoder and decode
-        val result = decoders
-            .find { decoder -> decoder.probe(file) }
-            ?.decode(file, width, height)
-            ?: return null
+        return lock.withLock {
+            try {
+                // Double-check cache after acquiring lock
+                // (another thread might have loaded it while we waited)
+                memoryCache.get(key)
+                    ?.takeUnless { it.isRecycled() }
+                    ?.let { return it }
 
-        // Cache the result
-        memoryCache.put(key, result)
+                // Load from disk/network
+                val file = fileProvider.getFile(url) ?: return null
 
-        return result
+                // Find suitable decoder and decode
+                val result = decoders
+                    .find { decoder -> decoder.probe(file) }
+                    ?.decode(file, width, height)
+                    ?: return null
+
+                // Cache the result
+                memoryCache.put(key, result)
+
+                result
+            } finally {
+                // Clean up lock if no one else is waiting
+                loadingLocks.remove(key, lock)
+            }
+        }
     }
 
     override fun loadAsync(url: String, width: Int, height: Int): Future<Result?> {

@@ -1,9 +1,11 @@
 package com.tomclaw.imageloader.core
 
 import java.lang.ref.WeakReference
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * UI-aware image loader that binds loading results to ViewHolder.
@@ -33,7 +35,9 @@ class ImageLoaderImpl(
     private val backgroundExecutor: ExecutorService
 ) : ImageLoader {
 
-    private val futures: MutableMap<String, Future<*>> = HashMap()
+    // Thread-safe map using unique request ID as key (not URL-based key)
+    private val futures: ConcurrentHashMap<Long, Future<*>> = ConcurrentHashMap()
+    private val requestIdGenerator = AtomicLong(0)
 
     override fun <T> load(
         view: ViewHolder<T>,
@@ -41,27 +45,28 @@ class ImageLoaderImpl(
         handlers: Handlers<T>
     ) {
         val size = view.optSize() ?: run { waitSizeAsync(view, uriString, handlers); return }
-        val key = repository.generateKey(uriString, size.width, size.height)
+        val cacheKey = repository.generateKey(uriString, size.width, size.height)
+
+        // Cancel previous request for this view
         val prevTag = view.tag
-        view.tag = key
-        val isLoading = prevTag
-            ?.takeIf { it is String }
-            ?.let { prevKey ->
-                val future = futures[prevKey]
-                if (prevKey == key && future?.isDone == false) {
-                    // This is the same URL and task is not yet completed.
-                    true
-                } else {
-                    future?.cancel(true)
-                    false
-                }
+        if (prevTag is RequestTag) {
+            if (prevTag.cacheKey == cacheKey && futures[prevTag.requestId]?.isDone == false) {
+                // Same URL and still loading — skip
+                return
             }
-        if (isLoading == true) return
+            // Different URL or completed — cancel previous
+            futures.remove(prevTag.requestId)?.cancel(true)
+        }
+
+        // Generate unique request ID for this view
+        val requestId = requestIdGenerator.incrementAndGet()
+        val requestTag = RequestTag(requestId, cacheKey)
+        view.tag = requestTag
 
         // Check cache first
         repository.getCached(uriString, size.width, size.height)
             ?.run { handlers.success.invoke(view, this) }
-            ?: loadAsync(view, size, uriString, key, handlers)
+            ?: loadAsync(view, size, uriString, requestTag, handlers)
     }
 
     private fun <T> waitSizeAsync(
@@ -81,29 +86,41 @@ class ImageLoaderImpl(
         view: ViewHolder<T>,
         size: ViewSize,
         uriString: String,
-        key: String,
+        requestTag: RequestTag,
         handlers: Handlers<T>
     ) {
         val weakView = WeakReference(view)
         handlers.placeholder.invoke(view)
-        backgroundExecutor.submit {
-            repository.load(uriString, size.width, size.height)
-                ?.let { result ->
-                    mainExecutor.execute {
-                        weakView.get()?.apply {
-                            if (tag == key) {
-                                handlers.success.invoke(this, result)
-                            }
-                        }
-                        futures.remove(key)
+
+        val future = backgroundExecutor.submit {
+            val result = repository.load(uriString, size.width, size.height)
+
+            mainExecutor.execute {
+                // Always clean up the future
+                futures.remove(requestTag.requestId)
+
+                // Only update view if request is still valid
+                val currentView = weakView.get() ?: return@execute
+                val currentTag = currentView.tag
+                if (currentTag is RequestTag && currentTag.requestId == requestTag.requestId) {
+                    if (result != null) {
+                        handlers.success.invoke(currentView, result)
+                    } else {
+                        handlers.error.invoke(currentView)
                     }
-                } ?: mainExecutor.execute {
-                    weakView.get()?.let { handlers.error.invoke(it) }
-                    futures.remove(key)
                 }
-        }.let { future ->
-            futures[key] = future
+            }
         }
+
+        futures[requestTag.requestId] = future
     }
+
+    /**
+     * Tag stored in ViewHolder to track request identity.
+     */
+    private data class RequestTag(
+        val requestId: Long,
+        val cacheKey: String
+    )
 
 }
