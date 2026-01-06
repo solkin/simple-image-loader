@@ -39,7 +39,7 @@ class FileProviderImpl(
             val uriString = uri.toString()
 
             return loader.load(uriString, tempFile)
-                .takeIf { true }
+                .takeIf { it }
                 ?.let { diskCache.put(uriString, tempFile) }
         } catch (ex: Throwable) {
             ex.printStackTrace()
