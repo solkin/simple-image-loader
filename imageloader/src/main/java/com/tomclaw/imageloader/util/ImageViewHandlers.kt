@@ -1,6 +1,7 @@
 package com.tomclaw.imageloader.util
 
 import android.graphics.PorterDuff
+import android.graphics.drawable.Drawable
 import android.widget.ImageView
 import com.tomclaw.imageloader.core.Handlers
 import com.tomclaw.imageloader.core.ViewHolder
@@ -40,6 +41,20 @@ fun Handlers<ImageView>.centerInside() = apply {
     }
 }
 
+fun Handlers<ImageView>.crossfade(durationMs: Int = 300) = apply {
+    val previousSuccess = success
+    successHandler { viewHolder, result ->
+        with(viewHolder.get()) {
+            alpha = 0f
+            previousSuccess(viewHolder, result)
+            animate()
+                .alpha(1f)
+                .setDuration(durationMs.toLong())
+                .start()
+        }
+    }
+}
+
 fun Handlers<ImageView>.withPlaceholder(drawableRes: Int) = apply {
     placeholderHandler {
         it.centerRes(drawableRes)
@@ -53,6 +68,23 @@ fun Handlers<ImageView>.withPlaceholder(drawableRes: Int, tintColor: Int) = appl
             centerRes(drawableRes)
             tint(tintColor)
         }
+    }
+}
+
+fun Handlers<ImageView>.withPlaceholder(drawable: Drawable) = apply {
+    placeholderHandler {
+        with(it.get()) {
+            scaleType = ImageView.ScaleType.CENTER
+            setImageDrawable(drawable)
+            colorFilter = null
+        }
+    }
+}
+
+fun Handlers<ImageView>.whenError(drawableRes: Int) = apply {
+    errorHandler {
+        it.centerRes(drawableRes)
+        it.get().colorFilter = null
     }
 }
 
