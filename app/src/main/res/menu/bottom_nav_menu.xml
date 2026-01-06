@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_gallery"
+        android:icon="@drawable/ic_gallery"
+        android:title="@string/nav_gallery" />
+    <item
+        android:id="@+id/nav_transform"
+        android:icon="@drawable/ic_transform"
+        android:title="@string/nav_transform" />
+    <item
+        android:id="@+id/nav_sources"
+        android:icon="@drawable/ic_source"
+        android:title="@string/nav_sources" />
+    <item
+        android:id="@+id/nav_stress"
+        android:icon="@drawable/ic_speed"
+        android:title="@string/nav_stress" />
+</menu>
+

@@ -1,51 +1,62 @@
 package com.tomclaw.imageloader.demo
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
+import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.ui.setupWithNavController
 import com.tomclaw.imageloader.SimpleImageLoader.imageLoader
-import java.net.URL
-import kotlin.concurrent.thread
-import kotlin.random.Random
-import org.json.JSONArray
+import com.tomclaw.imageloader.core.Logger
+import com.tomclaw.imageloader.core.SimpleImageLoaderLog
+import com.tomclaw.imageloader.demo.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
 
-    @SuppressLint("NotifyDataSetChanged")
+    private lateinit var binding: ActivityMainBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
+        
+        // Enable edge-to-edge
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        
+        // Enable debug logging
+        SimpleImageLoaderLog.logger = Logger.LOGCAT
+        
+        // Initialize image loader
         imageLoader()
-
-        val recyclerview = findViewById<RecyclerView>(R.id.recycler)
-        recyclerview.layoutManager = LinearLayoutManager(this)
-
-
-        val data = ArrayList<ItemsViewModel>()
-        val adapter = CustomAdapter(data)
-
-        thread {
-            // Yeah, this demo is quite a codeshit :)
-            try {
-                val since = Random(System.currentTimeMillis()).nextInt(100, 5000)
-                val json = URL("https://api.github.com/users?since=$since").readText()
-                val array = JSONArray(json)
-                for (i in 0 until array.length()) {
-                    val obj = array.getJSONObject(i)
-                    val avatarUrl = obj.optString("avatar_url") ?: continue
-                    val login = obj.optString("login")
-                    val url = obj.optString("url")
-                    data.add(ItemsViewModel(avatarUrl, login, url))
-                }
-            } catch (ignored: Throwable) {
-            }
-            runOnUiThread { adapter.notifyDataSetChanged() }
+        
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        
+        setSupportActionBar(binding.toolbar)
+        
+        setupEdgeToEdge()
+        setupNavigation()
+    }
+    
+    private fun setupEdgeToEdge() {
+        // Bottom navigation handles its own padding for navigation bar
+        ViewCompat.setOnApplyWindowInsetsListener(binding.bottomNav) { view, insets ->
+            val navBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            view.updatePadding(bottom = navBarInsets.bottom)
+            insets
         }
-
-        recyclerview.adapter = adapter
     }
 
+    private fun setupNavigation() {
+        val navHostFragment = supportFragmentManager
+            .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+        val navController = navHostFragment.navController
+        
+        binding.bottomNav.setupWithNavController(navController)
+        
+        // Update toolbar title on destination change
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            binding.toolbar.title = destination.label
+        }
+    }
 }

@@ -4,7 +4,9 @@
 
 Modern image loading library for Android. Simple by design, powerful under the hood.
 
-![GifDemo](/art/simple-image-loader-demo.gif)
+| Gallery | Transform | Sources | Stress |
+|---------|-----------|---------|--------|
+| ![Gallery](/art/gallery.jpeg) | ![Transform](/art/transform.jpeg) | ![Sources](/art/sources.jpeg) | ![Stress](/art/stress.jpeg) |
 
 ## Features
 
@@ -166,7 +168,7 @@ Create configurations once, use everywhere:
 ```kotlin
 // Define once
 val avatarConfig = imageRequest<ImageView> {
-    transform { circleCrop() }
+    circleCrop()
     crossfade()
     placeholder(R.drawable.avatar_placeholder)
     error(R.drawable.avatar_error)
@@ -218,12 +220,34 @@ imageView.fetch(url) {
 
 ### Built-in Transformations
 
-| Transformation | Description |
-|----------------|-------------|
+Transformations can be applied directly in the DSL:
+
+```kotlin
+imageView.fetch(url) {
+    circleCrop()           // Crop to circle
+    roundedCorners(24f)    // Round corners (px)
+    grayscale()            // Convert to grayscale
+    blur(25f)              // Apply blur effect
+}
+```
+
+| Method | Description |
+|--------|-------------|
 | `circleCrop()` | Crop image to circle |
-| `rounded(radiusPx)` | Round corners |
+| `roundedCorners(radiusPx)` | Round corners with given radius |
 | `grayscale()` | Convert to grayscale |
-| `blur(radius)` | Apply blur effect |
+| `blur(radius)` | Apply Gaussian blur (1-25) |
+
+Or use the `transform {}` block for chaining:
+
+```kotlin
+imageView.fetch(url) {
+    transform {
+        circleCrop()
+        grayscale()
+    }
+}
+```
 
 ## Advanced Configuration
 

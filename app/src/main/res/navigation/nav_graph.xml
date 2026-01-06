@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/nav_gallery">
+
+    <fragment
+        android:id="@+id/nav_gallery"
+        android:name="com.tomclaw.imageloader.demo.GalleryFragment"
+        android:label="@string/nav_gallery" />
+
+    <fragment
+        android:id="@+id/nav_transform"
+        android:name="com.tomclaw.imageloader.demo.TransformFragment"
+        android:label="@string/nav_transform" />
+
+    <fragment
+        android:id="@+id/nav_sources"
+        android:name="com.tomclaw.imageloader.demo.SourcesFragment"
+        android:label="@string/nav_sources" />
+
+    <fragment
+        android:id="@+id/nav_stress"
+        android:name="com.tomclaw.imageloader.demo.StressFragment"
+        android:label="@string/nav_stress" />
+
+</navigation>
+

@@ -1,3 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Simple Image Loader</string>
+    
+    <!-- Navigation -->
+    <string name="nav_gallery">Gallery</string>
+    <string name="nav_transform">Transform</string>
+    <string name="nav_sources">Sources</string>
+    <string name="nav_stress">Stress</string>
+    
+    <!-- Gallery -->
+    <string name="gallery_title">Image Gallery</string>
+    <string name="gallery_subtitle">Scroll fast to see caching in action</string>
+    
+    <!-- Transformations -->
+    <string name="transform_title">Transformations</string>
+    <string name="transform_original">Original</string>
+    <string name="transform_circle">Circle</string>
+    <string name="transform_rounded">Rounded</string>
+    <string name="transform_grayscale">Grayscale</string>
+    <string name="transform_blur">Blur</string>
+    
+    <!-- Scale Types -->
+    <string name="scale_center_crop">Center Crop</string>
+    <string name="scale_fit_center">Fit Center</string>
+    <string name="scale_center_inside">Center Inside</string>
+    
+    <!-- Options -->
+    <string name="option_crossfade">Crossfade</string>
+    <string name="option_placeholder">Placeholder</string>
+    <string name="option_error">Error handler</string>
+    
+    <!-- Sources -->
+    <string name="sources_title">Image Sources</string>
+    <string name="source_http">HTTP/HTTPS</string>
+    <string name="source_file">File (Assets)</string>
+    <string name="source_content">Content Provider</string>
+    
+    <!-- Stress Test -->
+    <string name="stress_title">Stress Test</string>
+    <string name="stress_subtitle">Loading %d images</string>
+    <string name="stress_start">Start Test</string>
+    <string name="stress_clear_cache">Clear Cache</string>
+    
+    <!-- Common -->
+    <string name="reload">Reload</string>
+    <string name="loading">Loading…</string>
+    <string name="error">Error loading image</string>
 </resources>

@@ -145,6 +145,36 @@ class ImageRequest<T> {
         TransformationBuilder(this.transformations).apply(block)
     }
 
+    // ==================== Transformation Shortcuts ====================
+
+    /**
+     * Crops the image to a circle.
+     */
+    fun circleCrop() = apply {
+        transformations.add(CircleCropTransformation())
+    }
+
+    /**
+     * Rounds the corners of the image.
+     */
+    fun roundedCorners(radiusPx: Float) = apply {
+        transformations.add(RoundedCornersTransformation(radiusPx.toInt()))
+    }
+
+    /**
+     * Converts the image to grayscale.
+     */
+    fun grayscale() = apply {
+        transformations.add(GrayscaleTransformation())
+    }
+
+    /**
+     * Applies blur to the image.
+     */
+    fun blur(radius: Float = 25f) = apply {
+        transformations.add(BlurTransformation(radius.toInt()))
+    }
+
     // ==================== Cache Policy ====================
 
     fun memoryCache(policy: CachePolicy) = apply {
