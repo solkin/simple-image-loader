@@ -1,9 +1,8 @@
 package com.tomclaw.imageloader
 
 import android.content.Context
-import com.tomclaw.cache.DiskLruCache
 import com.tomclaw.imageloader.core.Decoder
-import com.tomclaw.imageloader.core.DiskCacheImpl
+import com.tomclaw.imageloader.core.DiskCache
 import com.tomclaw.imageloader.core.FileProvider
 import com.tomclaw.imageloader.core.FileProviderImpl
 import com.tomclaw.imageloader.core.ImageLoader
@@ -23,14 +22,21 @@ import java.util.concurrent.Executors
 
 object SimpleImageLoader {
 
+    @Volatile
     private var imageLoader: ImageLoader? = null
+
+    private const val DEFAULT_DISK_CACHE_SIZE = 15728640L
 
     /**
      * Returns the singleton ImageLoader instance.
      * Initializes with default configuration if not already initialized.
+     * Called from both the main thread (view binding) and background threads (size
+     * waiting), so initialization is guarded to run once.
      */
     fun Context.imageLoader(): ImageLoader {
-        return imageLoader ?: initImageLoader()
+        return imageLoader ?: synchronized(this@SimpleImageLoader) {
+            imageLoader ?: initImageLoader()
+        }
     }
 
     /**
@@ -50,7 +56,7 @@ object SimpleImageLoader {
         decoders: List<Decoder> = listOf(BitmapDecoder()),
         fileProvider: FileProvider = FileProviderImpl(
             cacheDir,
-            DiskCacheImpl(DiskLruCache.create(cacheDir, 15728640L)),
+            DiskCache.create(cacheDir, DEFAULT_DISK_CACHE_SIZE),
             UrlLoader(),
             FileLoader(assets),
             ContentLoader(contentResolver)

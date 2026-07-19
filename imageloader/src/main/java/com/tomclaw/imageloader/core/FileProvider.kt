@@ -29,7 +29,13 @@ class FileProviderImpl(
     }
 
     override fun getFile(uri: Uri): File? {
-        val cached = diskCache.get(uri.toString())
+        val cached = try {
+            diskCache.get(uri.toString())
+        } catch (ex: Throwable) {
+            // A disk cache error must degrade to a miss, not bubble up and kill the load
+            log.e(TAG, "Disk cache lookup failed: $uri", ex)
+            null
+        }
         if (cached != null) {
             log.d(TAG, "Disk cache hit: $uri")
             return cached
