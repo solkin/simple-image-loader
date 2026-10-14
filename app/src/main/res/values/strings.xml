@@ -41,6 +41,7 @@
     <string name="stress_subtitle">Loading %d images</string>
     <string name="stress_start">Start Test</string>
     <string name="stress_clear_cache">Clear Cache</string>
+    <string name="stress_unsized">Unsized</string>
     
     <!-- Common -->
     <string name="reload">Reload</string>

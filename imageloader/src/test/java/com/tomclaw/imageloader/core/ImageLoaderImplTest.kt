@@ -1,10 +1,13 @@
 package com.tomclaw.imageloader.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
@@ -199,9 +202,194 @@ class ImageLoaderImplTest {
             private val size = ViewSize(width, height)
 
             override fun optSize() = size
-            override fun getSize() = size
+            override fun awaitSize(onSize: (ViewSize) -> Unit): Cancellable {
+                onSize(size)
+                return Cancellable { }
+            }
             override fun get() = Any()
         }
+    }
+
+    @Test
+    fun `views waiting for their size hold no background thread`() {
+        val singleThread = Executors.newSingleThreadExecutor()
+        val loader = ImageLoaderImpl(repository, immediateExecutor, singleThread)
+        whenever(repository.getCached(any(), any(), any())).thenReturn(null)
+        whenever(repository.load(any(), any(), any())).thenReturn(mock())
+
+        // More views never laid out than the pool has threads
+        repeat(20) { loader.load(UnsizedViewHolder(), "http://example.com/$it.jpg", Handlers()) }
+
+        val latch = CountDownLatch(1)
+        val handlers = Handlers<Any>().successHandler { _, _ -> latch.countDown() }
+        loader.load(createMockViewHolder(100, 100), "http://example.com/image.jpg", handlers)
+
+        assertTrue("a sized view still loads", latch.await(2, TimeUnit.SECONDS))
+        singleThread.shutdownNow()
+    }
+
+    @Test
+    fun `view waiting for its size loads once it has one`() {
+        val result = mock<Result>()
+        whenever(repository.getCached(any(), any(), any())).thenReturn(null)
+        whenever(repository.load("http://example.com/image.jpg", 100, 50)).thenReturn(result)
+
+        val view = UnsizedViewHolder()
+        val latch = CountDownLatch(1)
+        var placeholderCalled = false
+        var receivedResult: Result? = null
+        val handlers = Handlers<Any>()
+            .placeholderHandler { placeholderCalled = true }
+            .successHandler { _, r ->
+                receivedResult = r
+                latch.countDown()
+            }
+
+        imageLoader.load(view, "http://example.com/image.jpg", handlers)
+        assertTrue("placeholder shows while waiting", placeholderCalled)
+        verify(repository, never()).load(any(), any(), any())
+
+        view.layOut(ViewSize(100, 50))
+
+        latch.await(2, TimeUnit.SECONDS)
+        assertEquals(result, receivedResult)
+    }
+
+    @Test
+    fun `newer request for the view cancels its wait for size`() {
+        whenever(repository.getCached(any(), any(), any())).thenReturn(null)
+        whenever(repository.load(any(), any(), any())).thenReturn(mock())
+
+        val view = UnsizedViewHolder()
+        val loaded = mutableListOf<String>()
+        val latch = CountDownLatch(1)
+        fun handlers(url: String) = Handlers<Any>().successHandler { _, _ ->
+            synchronized(loaded) { loaded += url }
+            latch.countDown()
+        }
+
+        imageLoader.load(view, "http://example.com/old.jpg", handlers("old"))
+        val oldWait = view.waits.single()
+        imageLoader.load(view, "http://example.com/new.jpg", handlers("new"))
+
+        assertTrue("the older wait is cancelled", oldWait.cancelled)
+        assertEquals("only the newer one waits", 1, view.waits.count { !it.cancelled })
+
+        view.layOut(ViewSize(100, 100))
+        // Even a wait that fires late lands nowhere
+        oldWait.onSize(ViewSize(100, 100))
+
+        latch.await(2, TimeUnit.SECONDS)
+        Thread.sleep(100)
+        assertEquals(listOf("new"), loaded)
+        verify(repository, never()).load(eq("http://example.com/old.jpg"), any(), any())
+    }
+
+    @Test
+    fun `request waiting for size cancels the load before it`() {
+        whenever(repository.getCached(any(), any(), any())).thenReturn(null)
+        whenever(repository.load(any(), any(), any())).thenAnswer {
+            Thread.sleep(300)
+            mock<Result>()
+        }
+
+        val view = UnsizedViewHolder(ViewSize(100, 100))
+        var successCount = 0
+        val handlers = Handlers<Any>().successHandler { _, _ -> successCount++ }
+
+        imageLoader.load(view, "http://example.com/old.jpg", handlers)
+        view.size = null
+        imageLoader.load(view, "http://example.com/new.jpg", handlers)
+
+        Thread.sleep(600)
+        assertEquals("the older load lands nowhere", 0, successCount)
+    }
+
+    @Test
+    fun `wait for size of a view that dropped its tag lands nowhere`() {
+        whenever(repository.getCached(any(), any(), any())).thenReturn(mock())
+
+        val view = UnsizedViewHolder()
+        var successCalled = false
+        val handlers = Handlers<Any>().successHandler { _, _ -> successCalled = true }
+
+        imageLoader.load(view, "http://example.com/image.jpg", handlers)
+        view.tag = null
+        view.layOut(ViewSize(100, 100))
+
+        assertFalse(successCalled)
+    }
+
+    @Test
+    fun `cancel stops the view's wait for size`() {
+        whenever(repository.getCached(any(), any(), any())).thenReturn(mock())
+
+        val view = UnsizedViewHolder()
+        var successCalled = false
+        val handlers = Handlers<Any>().successHandler { _, _ -> successCalled = true }
+
+        imageLoader.load(view, "http://example.com/image.jpg", handlers)
+        val wait = view.waits.single()
+        imageLoader.cancel(view)
+        view.layOut(ViewSize(100, 100))
+
+        assertTrue(wait.cancelled)
+        assertFalse(successCalled)
+    }
+
+    @Test
+    fun `cancel stops the view's load`() {
+        whenever(repository.getCached(any(), any(), any())).thenReturn(null)
+        whenever(repository.load(any(), any(), any())).thenAnswer {
+            Thread.sleep(200)
+            mock<Result>()
+        }
+
+        val view = createMockViewHolder(100, 100)
+        var called = false
+        val handlers = Handlers<Any>()
+            .successHandler { _, _ -> called = true }
+            .errorHandler { called = true }
+
+        imageLoader.load(view, "http://example.com/image.jpg", handlers)
+        imageLoader.cancel(view)
+
+        Thread.sleep(400)
+        assertFalse(called)
+    }
+
+    /** A view not laid out yet: it waits for [layOut] to have a size. */
+    private class UnsizedViewHolder(var size: ViewSize? = null) : ViewHolder<Any> {
+
+        class Wait(val onSize: (ViewSize) -> Unit) : Cancellable {
+            var cancelled = false
+            override fun cancel() {
+                cancelled = true
+            }
+        }
+
+        val waits = mutableListOf<Wait>()
+        override var tag: Any? = null
+
+        override fun optSize() = size
+
+        override fun awaitSize(onSize: (ViewSize) -> Unit): Cancellable {
+            size?.let {
+                onSize(it)
+                return Cancellable { }
+            }
+            return Wait(onSize).also { waits += it }
+        }
+
+        fun layOut(size: ViewSize) {
+            this.size = size
+            waits.filter { !it.cancelled }.forEach {
+                waits -= it
+                it.onSize(size)
+            }
+        }
+
+        override fun get() = Any()
     }
 }
 

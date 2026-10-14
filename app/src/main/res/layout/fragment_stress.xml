@@ -118,17 +118,7 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Grid -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recycler_view"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:clipToPadding="false"
-            android:padding="8dp"
-            tools:listitem="@layout/item_stress" />
-
-        <!-- Controls -->
+        <!-- Controls: above the grid, which the bottom navigation overlaps -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -146,6 +136,15 @@
                 android:text="@string/stress_clear_cache" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_unsized"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="@string/stress_unsized" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_reload"
                 style="@style/Widget.Material3.Button"
                 android:layout_width="0dp"
@@ -154,6 +153,16 @@
                 android:text="@string/reload" />
 
         </LinearLayout>
+
+        <!-- Grid -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_view"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:padding="8dp"
+            tools:listitem="@layout/item_stress" />
 
     </LinearLayout>
 

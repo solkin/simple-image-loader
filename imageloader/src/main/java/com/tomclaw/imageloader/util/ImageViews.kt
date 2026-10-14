@@ -58,6 +58,14 @@ fun ImageView.fetch(url: String, request: ImageRequest<ImageView>) {
 }
 
 /**
+ * Cancels what the ImageView is loading or waiting to load, so that nothing asked
+ * for before lands in it.
+ */
+fun ImageView.cancelFetch() {
+    context.imageLoader().cancel(ImageViewHolder(this))
+}
+
+/**
  * Converts ImageRequest to Handlers for backward compatibility.
  */
 private fun ImageRequest<ImageView>.toHandlers(imageView: ImageView): Handlers<ImageView> {

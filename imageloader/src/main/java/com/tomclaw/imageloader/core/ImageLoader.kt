@@ -30,6 +30,12 @@ interface ImageLoader {
         handlers: Handlers<T>
     )
 
+    /**
+     * Cancels what the view is loading or waiting to load, so that nothing asked for
+     * before lands in it.
+     */
+    fun <T> cancel(view: ViewHolder<T>)
+
 }
 
 class ImageLoaderImpl(
@@ -48,10 +54,18 @@ class ImageLoaderImpl(
         handlers: Handlers<T>
     ) {
         val size = view.optSize() ?: run {
-            log.d(TAG, "Waiting for size: $uriString")
-            waitSizeAsync(view, uriString, handlers)
+            waitSize(view, uriString, handlers)
             return
         }
+        load(view, size, uriString, handlers)
+    }
+
+    private fun <T> load(
+        view: ViewHolder<T>,
+        size: ViewSize,
+        uriString: String,
+        handlers: Handlers<T>
+    ) {
         val cacheKey = repository.generateKey(uriString, size.width, size.height)
 
         // Cancel previous request for this view
@@ -62,11 +76,8 @@ class ImageLoaderImpl(
                 log.d(TAG, "Skip duplicate request #${prevTag.requestId}: $uriString")
                 return
             }
-            // Different URL or completed — cancel previous
-            val cancelled = futures.remove(prevTag.requestId)?.cancel(true)
-            if (cancelled == true) {
-                log.d(TAG, "Cancelled request #${prevTag.requestId}")
-            }
+            // Different URL, waiting for size or completed — cancel previous
+            cancel(prevTag)
         }
 
         // Generate unique request ID for this view
@@ -87,16 +98,48 @@ class ImageLoaderImpl(
         }
     }
 
-    private fun <T> waitSizeAsync(
+    /**
+     * Waits on the main thread for the view's size, holding no thread meanwhile. The wait is the
+     * view's request until it ends: a newer one for the view cancels it, as it would a load.
+     */
+    private fun <T> waitSize(
         view: ViewHolder<T>,
         uriString: String,
         handlers: Handlers<T>
     ) {
-        backgroundExecutor.submit {
-            view.getSize()
-            mainExecutor.execute {
-                load(view, uriString, handlers)
+        (view.tag as? RequestTag)?.let(::cancel)
+
+        val requestId = requestIdGenerator.incrementAndGet()
+        val requestTag = RequestTag(requestId, cacheKey = null)
+        view.tag = requestTag
+        log.d(TAG, "Waiting for size #$requestId: $uriString")
+        handlers.placeholder.invoke(view)
+
+        val wait = view.awaitSize { size ->
+            val currentTag = view.tag
+            if (currentTag is RequestTag && currentTag.requestId == requestId) {
+                load(view, size, uriString, handlers)
+            } else {
+                log.w(TAG, "Stale #$requestId: $uriString (tag mismatch)")
             }
+        }
+        // Not when the size was there already: the request it began is the view's by now.
+        if (view.tag === requestTag) {
+            requestTag.sizeWait = wait
+        }
+    }
+
+    override fun <T> cancel(view: ViewHolder<T>) {
+        val tag = view.tag as? RequestTag ?: return
+        cancel(tag)
+        view.tag = null
+    }
+
+    private fun cancel(tag: RequestTag) {
+        tag.sizeWait?.cancel()
+        val cancelled = futures.remove(tag.requestId)?.cancel(true)
+        if (cancelled == true) {
+            log.d(TAG, "Cancelled request #${tag.requestId}")
         }
     }
 
@@ -147,11 +190,14 @@ class ImageLoaderImpl(
     }
 
     /**
-     * Tag stored in ViewHolder to track request identity.
+     * Tag stored in ViewHolder to track request identity: a load of [cacheKey], or a wait for
+     * the view's size, which has no key yet.
      */
-    private data class RequestTag(
+    private class RequestTag(
         val requestId: Long,
-        val cacheKey: String
-    )
+        val cacheKey: String?
+    ) {
+        var sizeWait: Cancellable? = null
+    }
 
 }

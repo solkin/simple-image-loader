@@ -8,9 +8,11 @@ import org.junit.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
 class ImageRepositoryImplTest {
@@ -42,7 +44,7 @@ class ImageRepositoryImplTest {
         val result = repository.load("http://example.com/image.jpg", 100, 100)
 
         assertEquals(cachedResult, result)
-        verify(fileProvider, never()).getFile(any())
+        verify(fileProvider, never()).getFile(any<String>())
     }
 
     @Test
@@ -53,7 +55,7 @@ class ImageRepositoryImplTest {
 
         val file = mock<File>()
         val freshResult = mock<Result>()
-        whenever(fileProvider.getFile(any())).thenReturn(file)
+        whenever(fileProvider.getFile(any<String>())).thenReturn(file)
         whenever(decoder.probe(file)).thenReturn(true)
         whenever(decoder.decode(file, 100, 100)).thenReturn(freshResult)
 
@@ -66,7 +68,7 @@ class ImageRepositoryImplTest {
     @Test
     fun `load returns null when file provider fails`() {
         whenever(memoryCache.get(any())).thenReturn(null)
-        whenever(fileProvider.getFile(any())).thenReturn(null)
+        whenever(fileProvider.getFile(any<String>())).thenReturn(null)
 
         val result = repository.load("http://example.com/image.jpg", 100, 100)
 
@@ -77,7 +79,7 @@ class ImageRepositoryImplTest {
     fun `load returns null when no decoder matches`() {
         val file = mock<File>()
         whenever(memoryCache.get(any())).thenReturn(null)
-        whenever(fileProvider.getFile(any())).thenReturn(file)
+        whenever(fileProvider.getFile(any<String>())).thenReturn(file)
         whenever(decoder.probe(file)).thenReturn(false)
 
         val result = repository.load("http://example.com/image.jpg", 100, 100)
@@ -90,7 +92,7 @@ class ImageRepositoryImplTest {
         val file = mock<File>()
         val decodedResult = mock<Result>()
         whenever(memoryCache.get(any())).thenReturn(null)
-        whenever(fileProvider.getFile(any())).thenReturn(file)
+        whenever(fileProvider.getFile(any<String>())).thenReturn(file)
         whenever(decoder.probe(file)).thenReturn(true)
         whenever(decoder.decode(file, 100, 100)).thenReturn(decodedResult)
 
@@ -143,7 +145,7 @@ class ImageRepositoryImplTest {
         val file = mock<File>()
         val decodedResult = mock<Result>()
         whenever(memoryCache.get(any())).thenReturn(null)
-        whenever(fileProvider.getFile(any())).thenReturn(file)
+        whenever(fileProvider.getFile(any<String>())).thenReturn(file)
         whenever(decoder.probe(file)).thenReturn(true)
         whenever(decoder.decode(file, 100, 100)).thenReturn(decodedResult)
 
@@ -157,8 +159,8 @@ class ImageRepositoryImplTest {
     fun `concurrent loads for same URL are coalesced`() {
         val file = mock<File>()
         val decodedResult = mock<Result>()
-        whenever(memoryCache.get(any())).thenReturn(null)
-        whenever(fileProvider.getFile(any())).thenAnswer {
+        backMemoryCache()
+        whenever(fileProvider.getFile(any<String>())).thenAnswer {
             Thread.sleep(100) // Simulate slow network
             file
         }
@@ -185,7 +187,7 @@ class ImageRepositoryImplTest {
         results.forEach { assertNotNull(it) }
 
         // FileProvider should only be called once (coalesced)
-        verify(fileProvider, times(1)).getFile(any())
+        verify(fileProvider, times(1)).getFile(any<String>())
     }
 
     @Test
@@ -193,8 +195,8 @@ class ImageRepositoryImplTest {
         val file = mock<File>()
         val decodedResult = mock<Result>()
         whenever(decodedResult.isRecycled()).thenReturn(false)
-        whenever(memoryCache.get(any())).thenReturn(null).thenReturn(decodedResult)
-        whenever(fileProvider.getFile(any())).thenReturn(file)
+        backMemoryCache()
+        whenever(fileProvider.getFile(any<String>())).thenReturn(file)
         whenever(decoder.probe(file)).thenReturn(true)
         whenever(decoder.decode(file, 100, 100)).thenReturn(decodedResult)
 
@@ -205,7 +207,15 @@ class ImageRepositoryImplTest {
 
         assertEquals(decodedResult, result2)
         // FileProvider called only once
-        verify(fileProvider, times(1)).getFile(any())
+        verify(fileProvider, times(1)).getFile(any<String>())
+    }
+
+    /** Makes the memory cache keep what is put into it, as the real one does. */
+    private fun backMemoryCache() {
+        val cached = ConcurrentHashMap<String, Result>()
+        whenever(memoryCache.get(any())).thenAnswer { cached[it.getArgument<String>(0)] }
+        whenever(memoryCache.put(any(), any())).thenAnswer {
+            cached.put(it.getArgument(0), it.getArgument(1))
+        }
     }
 }
-

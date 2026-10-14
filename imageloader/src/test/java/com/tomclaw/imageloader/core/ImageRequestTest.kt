@@ -163,7 +163,7 @@ class ImageRequestTest {
             .onLoading { count++ }
             .onLoading { count++ }
 
-        request.onLoading(mock())
+        request.onLoading.invoke(mock())
 
         assertEquals(2, count)
     }

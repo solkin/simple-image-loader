@@ -26,6 +26,9 @@ class StressFragment : Fragment() {
     
     private lateinit var adapter: StressAdapter
 
+    // Views that are never laid out, as on a screen recreated and never shown
+    private val unsizedViews = mutableListOf<ImageView>()
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -84,6 +87,18 @@ class StressFragment : Fragment() {
             adapter.refreshUrls()
             adapter.notifyDataSetChanged()
         }
+
+        binding.btnUnsized.setOnClickListener {
+            // Each waits for a size it never gets; the grid must load all the same
+            repeat(UNSIZED_COUNT) { index ->
+                val imageView = ImageView(requireContext())
+                unsizedViews += imageView
+                imageView.fetch("https://picsum.photos/200/200?random=unsized$index&t=${System.nanoTime()}")
+            }
+            resetStats()
+            adapter.refreshUrls()
+            adapter.notifyDataSetChanged()
+        }
     }
 
     private fun resetStats() {
@@ -107,7 +122,13 @@ class StressFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        unsizedViews.clear()
         _binding = null
+    }
+
+    private companion object {
+        // More than the loader has threads
+        const val UNSIZED_COUNT = 50
     }
 }
 

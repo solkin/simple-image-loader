@@ -30,8 +30,7 @@ object SimpleImageLoader {
     /**
      * Returns the singleton ImageLoader instance.
      * Initializes with default configuration if not already initialized.
-     * Called from both the main thread (view binding) and background threads (size
-     * waiting), so initialization is guarded to run once.
+     * May be called from any thread, so initialization is guarded to run once.
      */
     fun Context.imageLoader(): ImageLoader {
         return imageLoader ?: synchronized(this@SimpleImageLoader) {
