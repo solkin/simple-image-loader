@@ -467,7 +467,7 @@ class MyAdapter : RecyclerView.Adapter<ViewHolder>() {
 
 A view with no size yet is loaded into once it is laid out: the loader waits on the main thread with a layout listener and holds no thread meanwhile, so views that are never shown cost nothing. The latest request for a view wins, whether the earlier one is still waiting for the size or already loading; `imageView.cancelFetch()` drops it with nothing new, for a row that shows no picture.
 
-> Since v1.4.0 a custom `ViewHolder` implements `awaitSize(onSize)`, which must not block, instead of `getSize()`.
+> **Breaking in v2.0.0** (first released as v1.4.0): a custom `ViewHolder` implements `awaitSize(onSize)`, which must not block, instead of `getSize()`, and a custom `ImageLoader` implements `cancel(view)`.
 
 ## Requirements
 
